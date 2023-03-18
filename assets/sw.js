@@ -1,12 +1,12 @@
-var cacheName = 'egui-template-pwa';
-var filesToCache = [
+const cacheName = 'physics-pwa';
+const filesToCache = [
   './',
   './index.html',
-  './eframe_template.js',
-  './eframe_template_bg.wasm',
+  './physics.js',
+  './physics_bg.wasm',
 ];
 
-/* Start the service worker and cache all of the app's content */
+/* Start the service worker and cache all the app's content */
 self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(cacheName).then(function (cache) {
