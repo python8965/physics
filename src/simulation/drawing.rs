@@ -124,7 +124,7 @@ impl PlotDrawing {
             let points = obj
                 .force_list
                 .iter()
-                .fold((vec![], vec![]), |mut acc, force| {
+                .fold((vec![], vec![]), |mut acc, _force| {
                     acc.0.push(to_f64(obj.position.x, obj.position.y));
                     acc.1.push(to_f64(
                         obj.velocity().x + obj.position.x,

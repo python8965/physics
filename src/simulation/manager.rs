@@ -1,12 +1,12 @@
-use crate::simulation::engine::{BasicSim, Simulation};
+use crate::simulation::engine::{Simulation};
 use crate::simulation::template::SimulationType;
 use crate::simulation::Float;
-use eframe::epaint::mutex::MutexGuard;
-use egui::mutex::Mutex;
-use std::cell::{Ref, RefCell};
-use std::rc::Rc;
-use std::sync::Arc;
-use std::time::Duration;
+
+
+
+
+
+
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
@@ -66,7 +66,7 @@ impl SimulationManager {
                 if simulation.finished() {
                 } else if !self.is_paused {
                     self.sim_time += dt;
-                    simulation.step((dt as Float));
+                    simulation.step(dt as Float);
                 }
             }
         } else {

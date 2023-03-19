@@ -18,7 +18,7 @@ impl Default for State {
 
 impl State {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
@@ -60,7 +60,7 @@ impl eframe::App for State {
                     }
                 });
 
-                let buttons = SIM
+                let _buttons = SIM
                     .iter()
                     .map(|sim_type| {
                         let button = ui.button(sim_type.as_str());
@@ -102,7 +102,7 @@ impl eframe::App for State {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             if let Some(simulation) = &mut self.simulation_manager.get_simulation() {
-                let plot = Plot::new("Plot")
+                let _plot = Plot::new("Plot")
                     .allow_boxed_zoom(false)
                     .view_aspect(1.0)
                     .show(ui, |plot_ui| {

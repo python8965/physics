@@ -1,6 +1,6 @@
-use egui::plot::{Arrows, Line, PlotPoints, PlotUi, Polygon, Text};
+use egui::plot::{Arrows, Line, PlotUi, Polygon, Text};
 use egui::Vec2;
-use std::f64::consts::TAU;
+
 use std::fmt::{Debug, Formatter};
 
 pub mod drawing;
