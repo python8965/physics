@@ -1,16 +1,12 @@
-use crate::simulation::engine::{Simulation};
+use crate::simulation::engine::Simulation;
 use crate::simulation::template::SimulationType;
 use crate::simulation::Float;
-
-
-
-
-
-
+use log::{debug, log};
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
     sim_time: f64,
+    sim_time_multiplier: f64,
     is_paused: bool,
     current_sim_type: SimulationType,
     last_step_time: f64,
@@ -21,6 +17,7 @@ impl Default for SimulationManager {
         Self {
             simulation: None,
             sim_time: 0.0,
+            sim_time_multiplier: 1.0,
             is_paused: true,
             current_sim_type: Default::default(),
             last_step_time: 0.0,
@@ -29,6 +26,10 @@ impl Default for SimulationManager {
 }
 
 impl SimulationManager {
+    pub fn time_multiplier(&mut self) -> &mut f64 {
+        &mut self.sim_time_multiplier
+    }
+
     pub fn get_time(&self) -> f64 {
         self.sim_time
     }
@@ -57,7 +58,10 @@ impl SimulationManager {
 
     pub fn step(&mut self, last_time: f64) {
         if !self.is_paused {
-            let dt = last_time - self.last_step_time;
+            let mut dt = last_time - self.last_step_time;
+
+            dt *= self.sim_time_multiplier;
+
             self.sim_time += dt;
 
             self.last_step_time = last_time;

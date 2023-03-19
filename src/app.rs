@@ -1,4 +1,6 @@
 use egui::plot::{Line, Plot, PlotPoints};
+use egui::{Slider, Widget};
+use log::debug;
 
 use crate::simulation::manager::SimulationManager;
 use crate::simulation::template::SIM;
@@ -36,7 +38,6 @@ impl State {
 impl eframe::App for State {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let current_time = ctx.input(|i| i.time);
-
         self.simulation_manager.step(current_time);
 
         egui::SidePanel::left("Simulation Type").show(ctx, |ui| {
@@ -50,6 +51,11 @@ impl eframe::App for State {
                 "Elapsed Time (Σδt) = {:.2?}",
                 self.simulation_manager.get_time()
             ));
+            ui.horizontal(|ui| {
+                ui.label("Time mul");
+                let slider =
+                    Slider::new(self.simulation_manager.time_multiplier(), 0.5..=2.0).ui(ui);
+            });
 
             ui.separator();
 
@@ -85,6 +91,13 @@ impl eframe::App for State {
             });
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    ui.label("made by ");
+                    ui.hyperlink_to("python8965", "https://github.com/python8965");
+                    ui.label(".");
+                });
+
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
                     ui.label("powered by ");
