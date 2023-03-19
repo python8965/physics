@@ -1,10 +1,11 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::time::Duration;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> eframe::Result<()> {
+fn build() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -14,11 +15,16 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(|cc| Box::new(physics::State::new(cc))),
     )
+    .unwrap()
+}
+
+fn main() {
+    build();
 }
 
 // when compiling to web using trunk.
 #[cfg(target_arch = "wasm32")]
-fn main() {
+fn build() {
     // Make sure panics are logged using `console.error`.
     console_error_panic_hook::set_once();
 

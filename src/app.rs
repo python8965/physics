@@ -1,20 +1,17 @@
-use crate::simulation::{Simulation, SIM};
-use egui::mutex::Mutex;
-use egui::plot::{CoordinatesFormatter, Corner, Line, Plot, PlotPoints, PlotUi, Polygon};
-use std::sync::Arc;
-use std::time::Duration;
+use egui::plot::{Line, Plot, PlotPoints};
 
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-// if we add new fields, give them default values when deserializing old state
+use crate::simulation::manager::SimulationManager;
+use crate::simulation::template::SIM;
+
 pub struct State {
-    simulation: Option<Arc<Mutex<Simulation>>>,
+    simulation_manager: SimulationManager,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
             // Example stuff:
-            simulation: None,
+            simulation_manager: SimulationManager::default(),
         }
     }
 }
@@ -37,47 +34,54 @@ impl State {
 }
 
 impl eframe::App for State {
-    /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::left("Simulation Type").show(ctx, |ui| {
-            ui.heading("Side Panel");
+        let current_time = ctx.input(|i| i.time);
 
-            ui.horizontal(|ui| {
+        self.simulation_manager.step(current_time);
+
+        egui::SidePanel::left("Simulation Type").show(ctx, |ui| {
+            ui.collapsing("CONTROL INFO (click)", |ui| {
+                ui.label("Mouse drag : move chart\nCtrl + Drag : zoom")
+            });
+
+            ui.separator();
+
+            ui.label(format!(
+                "Elapsed Time (Σδt) = {:.2?}",
+                self.simulation_manager.get_time()
+            ));
+
+            ui.separator();
+
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    if ui.small_button("Pause/Resume").clicked() {
+                        self.simulation_manager.toggle_animation();
+                    }
+                });
+
                 let buttons = SIM
                     .iter()
                     .map(|sim_type| {
                         let button = ui.button(sim_type.as_str());
 
                         if button.clicked() {
-                            let old = self
-                                .simulation
-                                .replace(Arc::from(Mutex::new(sim_type.as_func())));
-
-                            if let Some(mut sim) = old {
-                                sim.lock().finish();
-                            }
-
-                            let sim_clone = self.simulation.clone().unwrap();
-
-                            if self.simulation.is_some() {
-                                std::thread::spawn(move || {
-                                    let dt = 0.5;
-
-                                    loop {
-                                        {
-                                            let mut sim = sim_clone.lock();
-                                            sim.step(dt);
-                                        }
-                                        std::thread::sleep(Duration::from_secs_f32(dt));
-                                    }
-                                });
-                            }
+                            self.simulation_manager.new_simulation(*sim_type);
                         }
 
                         button
                     })
                     .collect::<Vec<_>>();
+
+                // TODO: Source Code Demonstrate
+                // if ui.button("source code of current simulation").clicked() {
+                //     egui::Window::new("Source Code").show(ctx, |ui| {
+                //         ui.label(format!(
+                //             "{:?}",
+                //             self.simulation_manager.get_simulation_type()
+                //         ));
+                //     });
+                // }
             });
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -97,12 +101,8 @@ impl eframe::App for State {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            if let Some(simulation) = &mut self.simulation {
-                let mut simulation = simulation.lock();
-
+            if let Some(simulation) = &mut self.simulation_manager.get_simulation() {
                 let plot = Plot::new("Plot")
-                    .include_x(100.0)
-                    .include_x(-100.0)
                     .allow_boxed_zoom(false)
                     .view_aspect(1.0)
                     .show(ui, |plot_ui| {
@@ -120,5 +120,7 @@ impl eframe::App for State {
 
             egui::warn_if_debug_build(ui);
         });
+
+        ctx.request_repaint();
     }
 }
