@@ -1,18 +1,18 @@
 use crate::simulation::drawing::ObjectTraceLine;
-use crate::simulation::{DrawShapeType, Float};
-use egui::{Pos2, Vec2};
+use crate::simulation::{DrawShapeType, OVec2};
+use vector2math::Vector2;
 
 #[derive()]
 pub struct SimulationObject {
-    pub position: Pos2,
-    pub momentum: Vec2,
+    pub position: OVec2,
+    pub momentum: OVec2,
 
-    pub force_list: Vec<Vec2>,
+    pub force_list: Vec<OVec2>,
 
-    pub mass: Float,
+    pub mass: f64,
 
     pub shape: DrawShapeType,
-    pub scale: Option<Float>,
+    pub scale: Option<f64>,
 
     pub trace: ObjectTraceLine,
 }
@@ -20,7 +20,7 @@ pub struct SimulationObject {
 impl Default for SimulationObject {
     fn default() -> Self {
         Self {
-            position: Pos2::new(0.0, 0.0),
+            position: OVec2::new(0.0, 0.0),
             momentum: Default::default(),
             force_list: vec![],
             mass: 1.0,
@@ -32,12 +32,12 @@ impl Default for SimulationObject {
 }
 
 impl SimulationObject {
-    pub(crate) fn velocity(&self) -> Vec2 {
+    pub(crate) fn velocity(&self) -> OVec2 {
         // p = mv -> v = p/m
-        self.momentum / self.mass
+        self.momentum.div(self.mass)
     }
 
-    pub(crate) fn get_scale(&self) -> Float {
+    pub(crate) fn get_scale(&self) -> f64 {
         if self.scale.is_some() {
             self.scale.unwrap()
         } else {

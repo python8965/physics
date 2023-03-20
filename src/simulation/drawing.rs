@@ -1,12 +1,15 @@
 use crate::simulation::object::SimulationObject;
-use crate::simulation::{to_f64, DrawShapeType, PlotDrawItem};
-use egui::plot::{Arrows, Line, PlotPoint, PlotPoints, Polygon};
-use egui::{plot, Color32, Pos2, RichText};
+use crate::simulation::{DrawShapeType, OVec2, PlotDrawItem, PlotVectorType};
+use egui::plot::{Arrows, Line, PlotPoint, PlotPoints, Polygon, Text};
+use egui::{plot, Color32, RichText};
 use std::f64::consts::TAU;
+use tracing_subscriber::fmt::format;
+use vector2math::{FloatingVector2, Vector2};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PlotInfoFilter {
     pub(crate) force: bool,
+    pub(crate) sigma_force: bool,
     pub(crate) velocity: bool,
     pub(crate) trace: bool,
     pub(crate) text: bool,
@@ -18,10 +21,11 @@ impl PlotDrawing {
     pub(crate) fn get_draw_items(
         obj: &mut SimulationObject,
         filter: PlotInfoFilter,
+        time: f64,
         zoom: f64,
     ) -> Vec<PlotDrawItem> {
         let mut items = vec![PlotDrawItem::Polygon(Self::get_draw_shape(obj))];
-        items.extend(Self::get_info_shape(obj, filter, zoom));
+        items.extend(Self::get_info_shape(obj, filter, time, zoom));
         items
     }
 
@@ -32,8 +36,8 @@ impl PlotDrawing {
             DrawShapeType::Circle => PlotPoints::from_parametric_callback(
                 move |t| {
                     (
-                        t.sin() + obj.position.x as f64,
-                        t.cos() + obj.position.y as f64,
+                        t.sin() + obj.position.x() as f64,
+                        t.cos() + obj.position.y() as f64,
                     )
                 },
                 0.0..TAU,
@@ -41,10 +45,10 @@ impl PlotDrawing {
             ),
 
             DrawShapeType::Box => vec![
-                [obj.position.x - scale, obj.position.y - scale],
-                [obj.position.x - scale, obj.position.y + scale],
-                [obj.position.x + scale, obj.position.y + scale],
-                [obj.position.x + scale, obj.position.y - scale],
+                [obj.position.x() - scale, obj.position.y() - scale],
+                [obj.position.x() - scale, obj.position.y() + scale],
+                [obj.position.x() + scale, obj.position.y() + scale],
+                [obj.position.x() + scale, obj.position.y() - scale],
             ]
             .into_iter()
             .map(|e| [e[0] as f64, e[1] as f64])
@@ -53,26 +57,43 @@ impl PlotDrawing {
         })
     }
 
+    fn get_info_vector(start: OVec2, end: OVec2, text: RichText) -> [PlotDrawItem; 2] {
+        let arrows = Arrows::new([start.x(), start.y()], [(end.x()), (end.y())]);
+
+        let text = Text::new(PlotPoint::from(((start + end) / 2.0).map_vec2()), text);
+
+        let arrows = PlotDrawItem::Arrows(arrows.color(PlotVectorType::Velocity.to_color()));
+        let text = PlotDrawItem::Text(text);
+
+        [text, arrows]
+    }
+
     pub fn get_info_shape(
         obj: &mut SimulationObject,
         filter: PlotInfoFilter,
+        time: f64,
         zoom: f64,
     ) -> Vec<PlotDrawItem> {
         let mut draw_vec = vec![];
 
         let scale = obj.get_scale();
-        let font_size = (scale / zoom as f32) * 200.0;
+        let font_size_raw = ((scale / zoom) * 400.0) as f32;
+
+        let font_size = match font_size_raw {
+            _x if font_size_raw > 64.0 => 64.0,
+            _x if font_size_raw < 8.0 => 8.0,
+            x => x,
+        };
+
+        let velocity_string = format!("Velocity : {:.3?}", obj.velocity().length());
 
         if filter.text {
-            let text = match font_size {
-                // TODO: DO NOT USE .. PATTERN WITH FLOAT
+            let text = match font_size_raw {
+                // TODO: DO NOT USE ..= PATTERN WITH FLOAT
                 ..=64.0 => {
                     let mut text = RichText::new(format!(
-                        "Pos : {:?}\nVelocity : {:?}\nMass : {:?}\nForce(s) : {:?}",
-                        obj.position,
-                        obj.velocity(),
-                        obj.mass,
-                        obj.force_list
+                        "Position : {:?}\nVelocity : {:?}\nForce(s) : {:?}\nMomentum : {:?}",
+                        obj.position, velocity_string, obj.force_list, obj.momentum
                     ));
 
                     match font_size {
@@ -99,48 +120,60 @@ impl PlotDrawing {
 
             if let Some(text) = text {
                 draw_vec.push(PlotDrawItem::Text(plot::Text::new(
-                    PlotPoint::new(obj.position.x, obj.position.y),
+                    PlotPoint::new(obj.position.x(), obj.position.y()),
                     text,
                 )));
             }
         }
 
-        if filter.force {
-            let points = obj
-                .force_list
-                .iter()
-                .fold((vec![], vec![]), |mut acc, force| {
-                    acc.0.push(to_f64(obj.position.x, obj.position.y));
-                    acc.1
-                        .push(to_f64(force.x + obj.position.x, force.y + obj.position.y));
+        if filter.sigma_force {
+            let vector = obj.force_list.iter().fold(
+                (OVec2::new(0.0, 0.0), OVec2::new(0.0, 0.0)),
+                |mut acc, force| {
+                    acc.0 += OVec2::new(obj.position.x(), obj.position.y());
+                    acc.1 += OVec2::new(force.x() + obj.position.x(), force.y() + obj.position.y());
                     acc
-                });
+                },
+            ); // Sum of force
 
-            let arrows = PlotDrawItem::Arrow(Arrows::new(points.0, points.1));
+            let text =
+                RichText::new(format!("Sigma_Force {:.3?}", (vector.1 - vector.0))).size(font_size);
+
+            let [text, arrows] = PlotDrawing::get_info_vector(vector.0, vector.1, text);
+
+            draw_vec.push(text);
             draw_vec.push(arrows);
         }
 
         if filter.velocity {
-            let points = obj
-                .force_list
-                .iter()
-                .fold((vec![], vec![]), |mut acc, _force| {
-                    acc.0.push(to_f64(obj.position.x, obj.position.y));
-                    acc.1.push(to_f64(
-                        obj.velocity().x + obj.position.x,
-                        obj.velocity().y + obj.position.y,
-                    ));
-                    acc
-                });
+            let vector = (obj.position, obj.position + obj.velocity());
 
-            let arrows = PlotDrawItem::Arrow(Arrows::new(points.0, points.1));
+            let text = RichText::new(velocity_string.clone()).size(font_size);
+
+            let [text, arrows] = PlotDrawing::get_info_vector(vector.0, vector.1, text);
+            draw_vec.push(text);
             draw_vec.push(arrows);
+        }
+
+        if filter.force {
+            for force in &mut obj.force_list {
+                let vector = (obj.position, obj.position + *force);
+
+                dbg!(vector);
+
+                let text = RichText::new(format!("force : {:?}", force)).size(font_size);
+
+                let [text, arrows] = PlotDrawing::get_info_vector(vector.0, vector.1, text);
+                draw_vec.push(text);
+                draw_vec.push(arrows);
+            }
         }
 
         if filter.trace {
             draw_vec.push(PlotDrawItem::Line(obj.trace.line()));
-            obj.trace.update(obj.position);
         }
+
+        obj.trace.update(obj.position, time);
 
         draw_vec
     }
@@ -148,23 +181,26 @@ impl PlotDrawing {
 
 pub struct ObjectTraceLine {
     data: Vec<[f64; 2]>,
-    last_pos: Pos2,
+    last_pos: OVec2,
+    last_time: f64,
 }
 
 impl ObjectTraceLine {
-    const MIN_DISTANCE: f32 = 3.0;
+    const MIN_TIME: f64 = 0.5;
 
     pub(crate) fn new() -> Self {
         Self {
             data: vec![],
-            last_pos: Pos2::new(0.0, 0.0),
+            last_pos: OVec2::new(0.0, 0.0),
+            last_time: 0.0,
         }
     }
 
-    fn update(&mut self, pos: Pos2) {
-        if self.last_pos.distance(pos) > Self::MIN_DISTANCE {
-            self.data.push([pos.x as f64, pos.y as f64]);
+    fn update(&mut self, pos: OVec2, time: f64) {
+        if (time - self.last_time) > Self::MIN_TIME {
+            self.data.push([pos.x() as f64, pos.y() as f64]);
             self.last_pos = pos;
+            self.last_time = time;
         }
     }
 

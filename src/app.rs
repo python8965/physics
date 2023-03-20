@@ -47,8 +47,22 @@ impl eframe::App for State {
 
             ui.separator();
 
+            ui.checkbox(&mut self.simulation_manager.filter_mut().text, "text");
+            ui.checkbox(&mut self.simulation_manager.filter_mut().force, "force");
+            ui.checkbox(
+                &mut self.simulation_manager.filter_mut().velocity,
+                "velocity",
+            );
+            ui.checkbox(
+                &mut self.simulation_manager.filter_mut().sigma_force,
+                "sigma_force",
+            );
+            ui.checkbox(&mut self.simulation_manager.filter_mut().trace, "trace");
+
+            ui.separator();
+
             ui.label(format!(
-                "Elapsed Time (Σδt) = {:.2?}",
+                "Elapsed Time (ΣΔt) = {:.2?}",
                 self.simulation_manager.get_time()
             ));
             ui.horizontal(|ui| {
@@ -113,13 +127,15 @@ impl eframe::App for State {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            let filter = *self.simulation_manager.filter_mut();
+            let time = self.simulation_manager.get_time();
             // The central panel the region left after adding TopPanel's and SidePanel's
-            if let Some(simulation) = &mut self.simulation_manager.get_simulation() {
+            if let Some(simulation) = self.simulation_manager.get_simulation() {
                 let _plot = Plot::new("Plot")
                     .allow_boxed_zoom(false)
                     .view_aspect(1.0)
                     .show(ui, |plot_ui| {
-                        simulation.draw(plot_ui);
+                        simulation.draw(plot_ui, time, filter);
 
                         plot_ui.line(Line::new(PlotPoints::new(vec![
                             [-100.0, -100.0],

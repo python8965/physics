@@ -1,7 +1,7 @@
+use crate::simulation::drawing::PlotInfoFilter;
 use crate::simulation::engine::Simulation;
 use crate::simulation::template::SimulationType;
 use crate::simulation::Float;
-use log::{debug, log};
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
@@ -10,6 +10,8 @@ pub struct SimulationManager {
     is_paused: bool,
     current_sim_type: SimulationType,
     last_step_time: f64,
+
+    current_filter: PlotInfoFilter,
 }
 
 impl Default for SimulationManager {
@@ -21,6 +23,13 @@ impl Default for SimulationManager {
             is_paused: true,
             current_sim_type: Default::default(),
             last_step_time: 0.0,
+            current_filter: PlotInfoFilter {
+                force: false,
+                sigma_force: false,
+                velocity: false,
+                trace: false,
+                text: false,
+            },
         }
     }
 }
@@ -28,6 +37,10 @@ impl Default for SimulationManager {
 impl SimulationManager {
     pub fn time_multiplier(&mut self) -> &mut f64 {
         &mut self.sim_time_multiplier
+    }
+
+    pub fn filter_mut(&mut self) -> &mut PlotInfoFilter {
+        &mut self.current_filter
     }
 
     pub fn get_time(&self) -> f64 {

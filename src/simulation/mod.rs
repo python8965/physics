@@ -1,18 +1,39 @@
 use egui::plot::{Arrows, Line, PlotUi, Polygon, Text};
-use egui::Vec2;
+use egui::Color32;
 
 use std::fmt::{Debug, Formatter};
+use vector2math::Pair;
 
 pub mod drawing;
 pub mod engine;
 pub mod manager;
+pub mod math;
 pub mod object;
 pub mod template;
 
-type Float = f32;
+type Float = f64;
 
-fn to_f64(x: f32, y: f32) -> [f64; 2] {
-    [x as f64, y as f64]
+#[derive(Copy, Clone, Default, Debug)]
+pub struct OVec2([Float; 2]);
+
+impl Pair for OVec2 {
+    type Item = Float;
+
+    fn into_pair(self) -> (Self::Item, Self::Item) {
+        (self.0[0], self.0[1])
+    }
+
+    fn from_items(a: Self::Item, b: Self::Item) -> Self {
+        Self { 0: [a, b] }
+    }
+
+    fn first(&self) -> Self::Item {
+        self.0[0]
+    }
+
+    fn second(&self) -> Self::Item {
+        self.0[1]
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -23,16 +44,32 @@ pub enum DrawShapeType {
 
 pub enum PlotDrawItem {
     Polygon(Polygon),
-    Arrow(Arrows),
+    Arrows(Arrows), // Arrows with debug text
     Text(Text),
     Line(Line),
+}
+
+pub enum PlotVectorType {
+    Velocity,
+    Force,
+    SigmaForce,
+}
+
+impl PlotVectorType {
+    pub fn to_color(&self) -> Color32 {
+        match self {
+            PlotVectorType::Velocity => Color32::DARK_RED,
+            PlotVectorType::Force => Color32::DEBUG_COLOR,
+            PlotVectorType::SigmaForce => Color32::GREEN,
+        }
+    }
 }
 
 impl Debug for PlotDrawItem {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             PlotDrawItem::Polygon(_) => "DrawShape",
-            PlotDrawItem::Arrow(_) => "Arrow",
+            PlotDrawItem::Arrows(_) => "Arrow",
             PlotDrawItem::Text(_) => "Text",
             PlotDrawItem::Line(_) => "Line",
         })
@@ -45,7 +82,7 @@ impl PlotDrawItem {
             PlotDrawItem::Polygon(polygon) => {
                 plot_ui.polygon(polygon);
             }
-            PlotDrawItem::Arrow(arrows) => {
+            PlotDrawItem::Arrows(arrows) => {
                 plot_ui.arrows(arrows);
             }
             PlotDrawItem::Text(text) => {
@@ -55,19 +92,5 @@ impl PlotDrawItem {
                 plot_ui.line(line);
             }
         }
-    }
-}
-
-pub trait SumOnly {
-    fn sum_only(&self) -> Vec2;
-}
-
-impl SumOnly for Vec<Vec2> {
-    fn sum_only(&self) -> Vec2 {
-        let mut vec = Vec2::new(0.0, 0.0);
-        for i in self {
-            vec += *i;
-        }
-        vec
     }
 }
