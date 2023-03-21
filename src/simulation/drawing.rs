@@ -3,8 +3,7 @@ use crate::simulation::{DrawShapeType, OVec2, PlotDrawItem, PlotVectorType};
 use egui::plot::{Arrows, Line, PlotPoint, PlotPoints, Polygon, Text};
 use egui::{plot, Color32, RichText};
 use std::f64::consts::TAU;
-use tracing_subscriber::fmt::format;
-use vector2math::{FloatingVector2, Vector2};
+use vector2math::Vector2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PlotInfoFilter {
