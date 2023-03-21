@@ -2,39 +2,15 @@ use egui::plot::{Arrows, Line, PlotUi, Polygon, Text};
 use egui::Color32;
 
 use std::fmt::{Debug, Formatter};
-use vector2math::Pair;
 
 pub mod drawing;
 pub mod engine;
 pub mod manager;
-pub mod math;
 pub mod object;
 pub mod template;
 
-type Float = f64;
-
-#[derive(Copy, Clone, Default, Debug)]
-pub struct OVec2([Float; 2]);
-
-impl Pair for OVec2 {
-    type Item = Float;
-
-    fn into_pair(self) -> (Self::Item, Self::Item) {
-        (self.0[0], self.0[1])
-    }
-
-    fn from_items(a: Self::Item, b: Self::Item) -> Self {
-        Self { 0: [a, b] }
-    }
-
-    fn first(&self) -> Self::Item {
-        self.0[0]
-    }
-
-    fn second(&self) -> Self::Item {
-        self.0[1]
-    }
-}
+pub type Float = f64;
+pub type Vec2 = nalgebra::Vector2<f64>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DrawShapeType {

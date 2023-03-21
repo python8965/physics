@@ -1,9 +1,8 @@
 use crate::simulation::object::SimulationObject;
-use crate::simulation::{DrawShapeType, OVec2, PlotDrawItem, PlotVectorType};
+use crate::simulation::{DrawShapeType, PlotDrawItem, PlotVectorType, Vec2};
 use egui::plot::{Arrows, Line, PlotPoint, PlotPoints, Polygon, Text};
 use egui::{plot, Color32, RichText};
 use std::f64::consts::TAU;
-use vector2math::Vector2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PlotInfoFilter {
@@ -35,8 +34,8 @@ impl PlotDrawing {
             DrawShapeType::Circle => PlotPoints::from_parametric_callback(
                 move |t| {
                     (
-                        t.sin() + obj.position.x() as f64,
-                        t.cos() + obj.position.y() as f64,
+                        t.sin() + obj.position.x as f64,
+                        t.cos() + obj.position.y as f64,
                     )
                 },
                 0.0..TAU,
@@ -44,10 +43,10 @@ impl PlotDrawing {
             ),
 
             DrawShapeType::Box => vec![
-                [obj.position.x() - scale, obj.position.y() - scale],
-                [obj.position.x() - scale, obj.position.y() + scale],
-                [obj.position.x() + scale, obj.position.y() + scale],
-                [obj.position.x() + scale, obj.position.y() - scale],
+                [obj.position.x - scale, obj.position.y - scale],
+                [obj.position.x - scale, obj.position.y + scale],
+                [obj.position.x + scale, obj.position.y + scale],
+                [obj.position.x + scale, obj.position.y - scale],
             ]
             .into_iter()
             .map(|e| [e[0] as f64, e[1] as f64])
@@ -56,10 +55,10 @@ impl PlotDrawing {
         })
     }
 
-    fn get_info_vector(start: OVec2, end: OVec2, text: RichText) -> [PlotDrawItem; 2] {
-        let arrows = Arrows::new([start.x(), start.y()], [(end.x()), (end.y())]);
+    fn get_info_vector(start: Vec2, end: Vec2, text: RichText) -> [PlotDrawItem; 2] {
+        let arrows = Arrows::new([start.x, start.y], [(end.x), (end.y)]);
 
-        let text = Text::new(PlotPoint::from(((start + end) / 2.0).map_vec2()), text);
+        let text = Text::new(PlotPoint::from(((start + end) / 2.0).data.0[0]), text);
 
         let arrows = PlotDrawItem::Arrows(arrows.color(PlotVectorType::Velocity.to_color()));
         let text = PlotDrawItem::Text(text);
@@ -84,7 +83,7 @@ impl PlotDrawing {
             x => x,
         };
 
-        let velocity_string = format!("Velocity : {:.3?}", obj.velocity().length());
+        let velocity_string = format!("Velocity : {:.3?}", obj.velocity().len());
 
         if filter.text {
             let text = match font_size_raw {
@@ -119,7 +118,7 @@ impl PlotDrawing {
 
             if let Some(text) = text {
                 draw_vec.push(PlotDrawItem::Text(plot::Text::new(
-                    PlotPoint::new(obj.position.x(), obj.position.y()),
+                    PlotPoint::new(obj.position.x, obj.position.y),
                     text,
                 )));
             }
@@ -127,10 +126,10 @@ impl PlotDrawing {
 
         if filter.sigma_force {
             let vector = obj.force_list.iter().fold(
-                (OVec2::new(0.0, 0.0), OVec2::new(0.0, 0.0)),
+                (Vec2::new(0.0, 0.0), Vec2::new(0.0, 0.0)),
                 |mut acc, force| {
-                    acc.0 += OVec2::new(obj.position.x(), obj.position.y());
-                    acc.1 += OVec2::new(force.x() + obj.position.x(), force.y() + obj.position.y());
+                    acc.0 += Vec2::new(obj.position.x, obj.position.y);
+                    acc.1 += Vec2::new(force.x + obj.position.x, force.y + obj.position.y);
                     acc
                 },
             ); // Sum of force
@@ -180,7 +179,7 @@ impl PlotDrawing {
 
 pub struct ObjectTraceLine {
     data: Vec<[f64; 2]>,
-    last_pos: OVec2,
+    last_pos: Vec2,
     last_time: f64,
 }
 
@@ -190,14 +189,14 @@ impl ObjectTraceLine {
     pub(crate) fn new() -> Self {
         Self {
             data: vec![],
-            last_pos: OVec2::new(0.0, 0.0),
+            last_pos: Vec2::new(0.0, 0.0),
             last_time: 0.0,
         }
     }
 
-    fn update(&mut self, pos: OVec2, time: f64) {
+    fn update(&mut self, pos: Vec2, time: f64) {
         if (time - self.last_time) > Self::MIN_TIME {
-            self.data.push([pos.x() as f64, pos.y() as f64]);
+            self.data.push([pos.x, pos.y]);
             self.last_pos = pos;
             self.last_time = time;
         }

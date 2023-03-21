@@ -1,7 +1,8 @@
 use crate::simulation::engine::{BasicSim, Simulation};
 use crate::simulation::object::SimulationObject;
-use crate::simulation::{DrawShapeType, OVec2};
-use vector2math::Vector2;
+use crate::simulation::{DrawShapeType, Vec2};
+use nalgebra::Vector2;
+use std::ops::Mul;
 
 pub const SIM: &[SimulationType] = &[SimulationType::FreeFall, SimulationType::ProjectileMotion];
 
@@ -58,9 +59,9 @@ fn projectile_motion_sim() -> BasicSim {
             mass,
             shape: DrawShapeType::Box,
             scale: None,
-            momentum: OVec2::new(*x, 0.0).mul(mass),
-            force_list: vec![OVec2::new(0.0, -9.8)],
-            position: OVec2::new(1.0, 0.0),
+            momentum: Vec2::new(*x, 0.0).mul(mass),
+            force_list: vec![Vec2::new(0.0, -9.8)],
+            position: Vec2::new(1.0, 0.0),
             ..SimulationObject::default()
         })
         .collect::<Vec<_>>();

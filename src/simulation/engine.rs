@@ -2,7 +2,7 @@ use egui::plot::PlotUi;
 
 use crate::simulation::drawing::{PlotDrawing, PlotInfoFilter};
 use crate::simulation::object::SimulationObject;
-use crate::simulation::{Float, OVec2};
+use crate::simulation::{Float, Vec2};
 
 pub trait Simulation: Send + Sync {
     fn finish(&mut self);
@@ -63,7 +63,7 @@ impl Simulation for BasicSim {
 
 fn physics_system(dt: Float, obj: &mut SimulationObject) {
     obj.position = {
-        let sigma_force: OVec2 = obj.force_list.iter().fold(OVec2::zero(), |acc, x| acc + *x); // ΣF
+        let sigma_force: Vec2 = obj.force_list.iter().fold(Vec2::zeros(), |acc, x| acc + *x); // ΣF
 
         // ΣF = Δp / Δt
         // 우리는 운동량 p를 원한다

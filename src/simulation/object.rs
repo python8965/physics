@@ -1,13 +1,13 @@
 use crate::simulation::drawing::ObjectTraceLine;
-use crate::simulation::{DrawShapeType, OVec2};
-use vector2math::Vector2;
+use crate::simulation::{DrawShapeType, Vec2};
+use std::ops::Div;
 
 #[derive()]
 pub struct SimulationObject {
-    pub position: OVec2,
-    pub momentum: OVec2,
+    pub position: Vec2,
+    pub momentum: Vec2,
 
-    pub force_list: Vec<OVec2>,
+    pub force_list: Vec<Vec2>,
 
     pub mass: f64,
 
@@ -20,7 +20,7 @@ pub struct SimulationObject {
 impl Default for SimulationObject {
     fn default() -> Self {
         Self {
-            position: OVec2::new(0.0, 0.0),
+            position: Vec2::new(0.0, 0.0),
             momentum: Default::default(),
             force_list: vec![],
             mass: 1.0,
@@ -32,7 +32,7 @@ impl Default for SimulationObject {
 }
 
 impl SimulationObject {
-    pub(crate) fn velocity(&self) -> OVec2 {
+    pub(crate) fn velocity(&self) -> Vec2 {
         // p = mv -> v = p/m
         self.momentum.div(self.mass)
     }
