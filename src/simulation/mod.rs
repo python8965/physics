@@ -25,6 +25,9 @@ pub enum PlotDrawItem {
     Line(Line),
 }
 
+unsafe impl Send for PlotDrawItem {}
+unsafe impl Sync for PlotDrawItem {}
+
 pub enum PlotVectorType {
     Velocity,
     Force,

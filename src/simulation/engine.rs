@@ -1,67 +1,75 @@
 use egui::plot::PlotUi;
 
 use crate::simulation::drawing::{PlotDrawing, PlotInfoFilter};
-use crate::simulation::object::SimulationObject;
-use crate::simulation::{Float, Vec2};
+use crate::simulation::object::DefaultSim;
+use crate::simulation::{Float, PlotDrawItem, Vec2};
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SimState {
+    pub(crate) time: f64,
+    pub(crate) filter: PlotInfoFilter,
+}
 
 pub trait Simulation: Send + Sync {
-    fn finish(&mut self);
-
-    fn finished(&self) -> bool;
-
     fn step(&mut self, dt: Float);
 
-    fn draw(&mut self, plot_ui: &mut PlotUi, time: f64, filter: PlotInfoFilter);
+    fn draw(&mut self, plot_ui: &mut PlotUi, state: SimState);
 }
+
+pub type ItemGetFn = Box<dyn FnOnce(SimState) -> Vec<PlotDrawItem> + Sync + Send>;
 
 #[derive()]
 pub struct BasicSim {
-    children: Vec<SimulationObject>,
-    active: bool,
+    children: Vec<DefaultSim>,
+    items_fn: Box<dyn FnOnce(SimState) -> Vec<PlotDrawItem> + Sync + Send>,
+}
+
+impl From<Vec<DefaultSim>> for BasicSim {
+    fn from(children: Vec<DefaultSim>) -> Self {
+        BasicSim {
+            children,
+            items_fn: Box::new(|_| vec![]),
+        }
+    }
+}
+
+impl From<(Vec<DefaultSim>, ItemGetFn)> for BasicSim {
+    fn from((children, items): (Vec<DefaultSim>, ItemGetFn)) -> Self {
+        BasicSim {
+            children,
+            items_fn: items,
+        }
+    }
 }
 
 impl BasicSim {
     pub fn new() -> BasicSim {
         BasicSim {
             children: vec![],
-            active: true,
-        }
-    }
-
-    pub fn from(children: Vec<SimulationObject>) -> BasicSim {
-        BasicSim {
-            children,
-            active: true,
+            items_fn: Box::new(|_| vec![]),
         }
     }
 }
 
 impl Simulation for BasicSim {
-    fn finish(&mut self) {
-        self.active = false;
-    }
-
-    fn finished(&self) -> bool {
-        !self.active
-    }
-
     fn step(&mut self, dt: f64) {
         for child in &mut self.children {
             physics_system(dt, child);
         }
     }
 
-    fn draw(&mut self, plot_ui: &mut PlotUi, time: f64, filter: PlotInfoFilter) {
+    fn draw(&mut self, plot_ui: &mut PlotUi, state: SimState) {
         let zoom = plot_ui.plot_bounds().width();
         for child in &mut self.children {
-            for info in PlotDrawing::get_draw_items(child, filter, time, zoom) {
+            for info in PlotDrawing::get_draw_items(child, state, zoom) {
                 info.draw(plot_ui)
             }
         }
+        //TODO: Draw items_fn
     }
 }
 
-fn physics_system(dt: Float, obj: &mut SimulationObject) {
+fn physics_system(dt: Float, obj: &mut DefaultSim) {
     obj.position = {
         let sigma_force: Vec2 = obj.force_list.iter().fold(Vec2::zeros(), |acc, x| acc + *x); // ΣF
 

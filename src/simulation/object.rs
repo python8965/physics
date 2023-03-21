@@ -3,7 +3,7 @@ use crate::simulation::{DrawShapeType, Vec2};
 use std::ops::Div;
 
 #[derive()]
-pub struct SimulationObject {
+pub struct DefaultSim {
     pub position: Vec2,
     pub momentum: Vec2,
 
@@ -17,7 +17,7 @@ pub struct SimulationObject {
     pub trace: ObjectTraceLine,
 }
 
-impl Default for SimulationObject {
+impl Default for DefaultSim {
     fn default() -> Self {
         Self {
             position: Vec2::new(0.0, 0.0),
@@ -31,7 +31,7 @@ impl Default for SimulationObject {
     }
 }
 
-impl SimulationObject {
+impl DefaultSim {
     pub(crate) fn velocity(&self) -> Vec2 {
         // p = mv -> v = p/m
         self.momentum.div(self.mass)

@@ -1,4 +1,4 @@
-use egui::plot::{Line, Plot, PlotPoints};
+use egui::plot::{CoordinatesFormatter, Corner, Line, Plot, PlotPoints};
 use egui::{Slider, Widget};
 use log::debug;
 
@@ -46,18 +46,19 @@ impl eframe::App for State {
             });
 
             ui.separator();
-
-            ui.checkbox(&mut self.simulation_manager.filter_mut().text, "text");
-            ui.checkbox(&mut self.simulation_manager.filter_mut().force, "force");
-            ui.checkbox(
-                &mut self.simulation_manager.filter_mut().velocity,
-                "velocity",
-            );
-            ui.checkbox(
-                &mut self.simulation_manager.filter_mut().sigma_force,
-                "sigma_force",
-            );
-            ui.checkbox(&mut self.simulation_manager.filter_mut().trace, "trace");
+            ui.collapsing("Drawing Filter", |ui| {
+                ui.checkbox(&mut self.simulation_manager.filter_mut().text, "text");
+                ui.checkbox(&mut self.simulation_manager.filter_mut().force, "force");
+                ui.checkbox(
+                    &mut self.simulation_manager.filter_mut().velocity,
+                    "velocity",
+                );
+                ui.checkbox(
+                    &mut self.simulation_manager.filter_mut().sigma_force,
+                    "sigma_force",
+                );
+                ui.checkbox(&mut self.simulation_manager.filter_mut().trace, "trace");
+            });
 
             ui.separator();
 
@@ -127,15 +128,14 @@ impl eframe::App for State {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let filter = *self.simulation_manager.filter_mut();
-            let time = self.simulation_manager.get_time();
+            let state = self.simulation_manager.get_state();
             // The central panel the region left after adding TopPanel's and SidePanel's
             if let Some(simulation) = self.simulation_manager.get_simulation() {
                 let _plot = Plot::new("Plot")
                     .allow_boxed_zoom(false)
                     .view_aspect(1.0)
                     .show(ui, |plot_ui| {
-                        simulation.draw(plot_ui, time, filter);
+                        simulation.draw(plot_ui, state);
 
                         plot_ui.line(Line::new(PlotPoints::new(vec![
                             [-100.0, -100.0],

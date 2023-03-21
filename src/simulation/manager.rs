@@ -1,35 +1,29 @@
 use crate::simulation::drawing::PlotInfoFilter;
-use crate::simulation::engine::Simulation;
+use crate::simulation::engine::{SimState, Simulation};
 use crate::simulation::template::SimulationType;
 use crate::simulation::Float;
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
-    sim_time: f64,
+
+    sim_state: SimState,
+
     sim_time_multiplier: f64,
+
     is_paused: bool,
     current_sim_type: SimulationType,
     last_step_time: f64,
-
-    current_filter: PlotInfoFilter,
 }
 
 impl Default for SimulationManager {
     fn default() -> Self {
         Self {
             simulation: None,
-            sim_time: 0.0,
+            sim_state: SimState::default(),
             sim_time_multiplier: 1.0,
             is_paused: true,
             current_sim_type: Default::default(),
             last_step_time: 0.0,
-            current_filter: PlotInfoFilter {
-                force: false,
-                sigma_force: false,
-                velocity: false,
-                trace: false,
-                text: false,
-            },
         }
     }
 }
@@ -40,11 +34,15 @@ impl SimulationManager {
     }
 
     pub fn filter_mut(&mut self) -> &mut PlotInfoFilter {
-        &mut self.current_filter
+        &mut self.sim_state.filter
     }
 
     pub fn get_time(&self) -> f64 {
-        self.sim_time
+        self.sim_state.time
+    }
+
+    pub fn get_state(&self) -> SimState {
+        self.sim_state
     }
 
     pub fn get_simulation_type(&self) -> SimulationType {
@@ -60,13 +58,9 @@ impl SimulationManager {
     }
 
     pub fn new_simulation(&mut self, new_simulation: SimulationType) {
-        let old = self.simulation.replace(new_simulation.as_func());
+        self.simulation.replace(new_simulation.to_simulation());
 
-        if let Some(mut sim) = old {
-            sim.finish();
-        }
-
-        self.sim_time = 0.0;
+        self.sim_state.time = 0.0;
     }
 
     pub fn step(&mut self, last_time: f64) {
@@ -75,14 +69,13 @@ impl SimulationManager {
 
             dt *= self.sim_time_multiplier;
 
-            self.sim_time += dt;
+            self.sim_state.time += dt;
 
             self.last_step_time = last_time;
 
             if let Some(simulation) = &mut self.simulation {
-                if simulation.finished() {
-                } else if !self.is_paused {
-                    self.sim_time += dt;
+                if !self.is_paused {
+                    self.sim_state.time += dt;
                     simulation.step(dt as Float);
                 }
             }

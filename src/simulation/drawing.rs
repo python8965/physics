@@ -1,4 +1,5 @@
-use crate::simulation::object::SimulationObject;
+use crate::simulation::engine::SimState;
+use crate::simulation::object::DefaultSim;
 use crate::simulation::{DrawShapeType, PlotDrawItem, PlotVectorType, Vec2};
 use egui::plot::{Arrows, Line, PlotPoint, PlotPoints, Polygon, Text};
 use egui::{plot, Color32, RichText};
@@ -13,31 +14,37 @@ pub struct PlotInfoFilter {
     pub(crate) text: bool,
 }
 
+impl Default for PlotInfoFilter {
+    fn default() -> Self {
+        Self {
+            force: false,
+            sigma_force: true,
+            velocity: true,
+            trace: true,
+            text: false,
+        }
+    }
+}
+
 pub struct PlotDrawing {}
 
 impl PlotDrawing {
     pub(crate) fn get_draw_items(
-        obj: &mut SimulationObject,
-        filter: PlotInfoFilter,
-        time: f64,
+        obj: &mut DefaultSim,
+        state: SimState,
         zoom: f64,
     ) -> Vec<PlotDrawItem> {
         let mut items = vec![PlotDrawItem::Polygon(Self::get_draw_shape(obj))];
-        items.extend(Self::get_info_shape(obj, filter, time, zoom));
+        items.extend(Self::get_info_shape(obj, state, zoom));
         items
     }
 
-    fn get_draw_shape(obj: &mut SimulationObject) -> Polygon {
+    fn get_draw_shape(obj: &mut DefaultSim) -> Polygon {
         let scale = obj.get_scale();
 
         Polygon::new(match obj.shape {
             DrawShapeType::Circle => PlotPoints::from_parametric_callback(
-                move |t| {
-                    (
-                        t.sin() + obj.position.x as f64,
-                        t.cos() + obj.position.y as f64,
-                    )
-                },
+                move |t| (t.sin() + obj.position.x, t.cos() + obj.position.y),
                 0.0..TAU,
                 512,
             ),
@@ -66,12 +73,7 @@ impl PlotDrawing {
         [text, arrows]
     }
 
-    pub fn get_info_shape(
-        obj: &mut SimulationObject,
-        filter: PlotInfoFilter,
-        time: f64,
-        zoom: f64,
-    ) -> Vec<PlotDrawItem> {
+    pub fn get_info_shape(obj: &mut DefaultSim, state: SimState, zoom: f64) -> Vec<PlotDrawItem> {
         let mut draw_vec = vec![];
 
         let scale = obj.get_scale();
@@ -83,15 +85,13 @@ impl PlotDrawing {
             x => x,
         };
 
-        let velocity_string = format!("Velocity : {:.3?}", obj.velocity().len());
-
-        if filter.text {
+        if state.filter.text {
             let text = match font_size_raw {
                 // TODO: DO NOT USE ..= PATTERN WITH FLOAT
                 ..=64.0 => {
                     let mut text = RichText::new(format!(
-                        "Position : {:?}\nVelocity : {:?}\nForce(s) : {:?}\nMomentum : {:?}",
-                        obj.position, velocity_string, obj.force_list, obj.momentum
+                        "Position : {:.3?}\nVelocity : {:.3?}\nForce(s) : {:.3?}\nMomentum : {:.3?}",
+                        obj.position, obj.velocity().norm(), obj.force_list, obj.momentum
                     ));
 
                     match font_size {
@@ -124,7 +124,7 @@ impl PlotDrawing {
             }
         }
 
-        if filter.sigma_force {
+        if state.filter.sigma_force {
             let vector = obj.force_list.iter().fold(
                 (Vec2::new(0.0, 0.0), Vec2::new(0.0, 0.0)),
                 |mut acc, force| {
@@ -143,23 +143,24 @@ impl PlotDrawing {
             draw_vec.push(arrows);
         }
 
-        if filter.velocity {
+        if state.filter.velocity {
             let vector = (obj.position, obj.position + obj.velocity());
 
-            let text = RichText::new(velocity_string.clone()).size(font_size);
+            let text =
+                RichText::new(format!("Velocity : {:.3?}", obj.velocity().norm())).size(font_size);
 
             let [text, arrows] = PlotDrawing::get_info_vector(vector.0, vector.1, text);
             draw_vec.push(text);
             draw_vec.push(arrows);
         }
 
-        if filter.force {
+        if state.filter.force {
             for force in &mut obj.force_list {
                 let vector = (obj.position, obj.position + *force);
 
                 dbg!(vector);
 
-                let text = RichText::new(format!("force : {:?}", force)).size(font_size);
+                let text = RichText::new(format!("force : {:.3?}", force)).size(font_size);
 
                 let [text, arrows] = PlotDrawing::get_info_vector(vector.0, vector.1, text);
                 draw_vec.push(text);
@@ -167,11 +168,11 @@ impl PlotDrawing {
             }
         }
 
-        if filter.trace {
+        if state.filter.trace {
             draw_vec.push(PlotDrawItem::Line(obj.trace.line()));
         }
 
-        obj.trace.update(obj.position, time);
+        obj.trace.update(obj.position, state.time);
 
         draw_vec
     }
@@ -203,6 +204,8 @@ impl ObjectTraceLine {
     }
 
     fn line(&self) -> Line {
-        Line::new(self.data.clone()).color(Color32::from_rgba_unmultiplied(245, 2, 216, 0))
+        Line::new(self.data.clone())
+            .color(Color32::from_rgba_unmultiplied(245, 2, 216, 0))
+            .name("trace line")
     }
 }
