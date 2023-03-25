@@ -1,17 +1,19 @@
-use crate::simulation::drawing::PlotInfoFilter;
-use crate::simulation::engine::{SimState, Simulation};
-use crate::simulation::template::SimulationType;
-use crate::simulation::Float;
+use crate::app::graphics::plotting::{ObjectTraceLine, SimulationPlot};
+use crate::app::simulations::simengine::{ClassicSimulation, Simulation};
+use crate::app::simulations::state::{PlotInfoFilter, SimulationState};
+use crate::app::simulations::template::{ClassicSimulationPreset, ClassicSimulationType};
+use crate::app::Float;
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
 
-    sim_state: SimState,
+    sim_state: SimulationState,
+
+    simulation_plot: SimulationPlot,
 
     sim_time_multiplier: f64,
 
     is_paused: bool,
-    current_sim_type: SimulationType,
     last_step_time: f64,
 }
 
@@ -19,10 +21,10 @@ impl Default for SimulationManager {
     fn default() -> Self {
         Self {
             simulation: None,
-            sim_state: SimState::default(),
+            sim_state: SimulationState::default(),
+            simulation_plot: SimulationPlot::default(),
             sim_time_multiplier: 1.0,
             is_paused: true,
-            current_sim_type: Default::default(),
             last_step_time: 0.0,
         }
     }
@@ -41,24 +43,38 @@ impl SimulationManager {
         self.sim_state.time
     }
 
-    pub fn get_state(&self) -> SimState {
+    pub fn state(&mut self) -> SimulationState {
         self.sim_state
     }
 
-    pub fn get_simulation_type(&self) -> SimulationType {
-        self.current_sim_type
+    pub fn set_state(&mut self, state: SimulationState) {
+        self.sim_state = state
     }
 
-    pub fn get_simulation(&mut self) -> Option<&mut Box<dyn Simulation>> {
-        if let Some(sim) = &mut self.simulation {
-            Some(sim)
-        } else {
-            None
-        }
+    pub fn get_simulation(
+        &mut self,
+    ) -> (
+        &mut Option<Box<dyn Simulation>>,
+        &mut SimulationPlot,
+        &mut SimulationState,
+    ) {
+        (
+            &mut self.simulation,
+            &mut self.simulation_plot,
+            &mut self.sim_state,
+        )
     }
 
-    pub fn new_simulation(&mut self, new_simulation: SimulationType) {
-        self.simulation.replace(new_simulation.to_simulation());
+    pub fn new_simulation(&mut self, new_simulation: ClassicSimulationType) {
+        let ClassicSimulationPreset {
+            simulation_objects,
+            objects_fn,
+        } = new_simulation.get_preset();
+
+        self.simulation_plot = SimulationPlot::new(simulation_objects.len(), objects_fn);
+
+        self.simulation
+            .replace(Box::new(ClassicSimulation::from(simulation_objects)));
 
         self.sim_state.time = 0.0;
     }
@@ -81,12 +97,6 @@ impl SimulationManager {
             }
         } else {
             self.last_step_time = last_time;
-        }
-    }
-
-    pub fn reset_simulation(&mut self) {
-        if self.current_sim_type != SimulationType::None {
-            self.new_simulation(self.current_sim_type);
         }
     }
 

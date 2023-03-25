@@ -1,9 +1,19 @@
-use egui::plot::{CoordinatesFormatter, Corner, Line, Plot, PlotPoints};
-use egui::{Slider, Widget};
-use log::debug;
+use egui::plot::Plot;
+use egui::{vec2, Sense, Slider, Widget};
+use nalgebra::Vector2;
 
-use crate::simulation::manager::SimulationManager;
-use crate::simulation::template::SIM;
+use crate::app::manager::SimulationManager;
+use crate::app::simulations::state::update_simulation_state;
+use crate::app::simulations::template::SIM;
+
+mod graphics;
+mod manager;
+mod simulations;
+mod ui;
+mod util;
+
+pub type Float = f64;
+pub type NVec2 = Vector2<Float>;
 
 pub struct State {
     simulation_manager: SimulationManager,
@@ -31,8 +41,50 @@ impl State {
         //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         // }
 
+        setup_custom_fonts(&_cc.egui_ctx);
+
         Default::default()
     }
+}
+
+fn setup_custom_fonts(ctx: &egui::Context) {
+    // Start with the default fonts (we will be adding to them rather than replacing them).
+    // let mut fonts = egui::FontDefinitions::default();
+
+    // // Install my own font (maybe supporting non-latin characters).
+    // // .ttf and .otf files supported.
+    // fonts.font_data.insert(
+    //     "my_font".to_owned(),
+    //     egui::FontData::from_static(include_bytes!("C:\\Windows\\fonts\\Malgun.ttf")),
+    // );
+    //
+    // // Put my font first (highest priority) for proportional text:
+    // fonts
+    //     .families
+    //     .entry(egui::FontFamily::Proportional)
+    //     .or_default()
+    //     .insert(0, "my_font".to_owned());
+    //
+    // // Put my font as last fallback for monospace:
+    // fonts
+    //     .families
+    //     .entry(egui::FontFamily::Monospace)
+    //     .or_default()
+    //     .push("my_font".to_owned());
+    //
+    // // Tell egui to use these fonts:
+    // ctx.set_fonts(fonts);
+
+    // let mut style = (*ctx.style()).clone();
+    // style.text_styles = [
+    //     (Heading, FontId::new(30.0, Proportional)),
+    //     (Body, FontId::new(18.0, Proportional)),
+    //     (Monospace, FontId::new(14.0, Proportional)),
+    //     (Button, FontId::new(14.0, Proportional)),
+    //     (Small, FontId::new(10.0, Proportional)),
+    // ]
+    // .into();
+    // ctx.set_style(style);
 }
 
 impl eframe::App for State {
@@ -84,7 +136,7 @@ impl eframe::App for State {
                 let _buttons = SIM
                     .iter()
                     .map(|sim_type| {
-                        let button = ui.button(sim_type.as_str());
+                        let button = ui.button(sim_type.get_name());
 
                         if button.clicked() {
                             self.simulation_manager.new_simulation(*sim_type);
@@ -95,7 +147,7 @@ impl eframe::App for State {
                     .collect::<Vec<_>>();
 
                 // TODO: Source Code Demonstrate
-                // if ui.button("source code of current simulation").clicked() {
+                // if ui.button("source code of current app").clicked() {
                 //     egui::Window::new("Source Code").show(ctx, |ui| {
                 //         ui.label(format!(
                 //             "{:?}",
@@ -128,23 +180,26 @@ impl eframe::App for State {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let state = self.simulation_manager.get_state();
             // The central panel the region left after adding TopPanel's and SidePanel's
-            if let Some(simulation) = self.simulation_manager.get_simulation() {
-                let _plot = Plot::new("Plot")
-                    .allow_boxed_zoom(false)
-                    .view_aspect(1.0)
-                    .show(ui, |plot_ui| {
-                        simulation.draw(plot_ui, state);
 
-                        plot_ui.line(Line::new(PlotPoints::new(vec![
-                            [-100.0, -100.0],
-                            [-100.0, 100.0],
-                            [100.0, 100.0],
-                            [100.0, -100.0],
-                            [-100.0, -100.0],
-                        ])))
-                    });
+            if let (Some(simulation), simulation_plot, state) =
+                self.simulation_manager.get_simulation()
+            {
+                let mut plot = Plot::new("Plot").allow_boxed_zoom(false).data_aspect(1.0);
+
+                if simulation_plot.is_dragging_object() {
+                    plot = plot.allow_drag(false)
+                } else {
+                    plot = plot.allow_drag(true)
+                }
+
+                let response = plot.show(ui, |plot_ui| {
+                    update_simulation_state(state, plot_ui);
+                    simulation_plot.draw(simulation, plot_ui, *state);
+                    plot_ui.pointer_coordinate()
+                });
+
+                simulation_plot.input(simulation, response);
             }
 
             egui::warn_if_debug_build(ui);

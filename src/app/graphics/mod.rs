@@ -3,16 +3,9 @@ use egui::Color32;
 
 use std::fmt::{Debug, Formatter};
 
-pub mod drawing;
-pub mod engine;
-pub mod manager;
-pub mod object;
-pub mod template;
+pub mod plotting;
 
-pub type Float = f64;
-pub type Vec2 = nalgebra::Vector2<f64>;
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum DrawShapeType {
     Circle,
     Box,
@@ -56,7 +49,7 @@ impl Debug for PlotDrawItem {
 }
 
 impl PlotDrawItem {
-    fn draw(self, plot_ui: &mut PlotUi) {
+    pub(crate) fn draw(self, plot_ui: &mut PlotUi) {
         match self {
             PlotDrawItem::Polygon(polygon) => {
                 plot_ui.polygon(polygon);
