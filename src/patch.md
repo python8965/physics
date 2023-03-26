@@ -20,5 +20,5 @@
 - by plot legends
 
 0.1.5
-- now simulation can initialized!
+- now simulation can initialize!
 - simulation can init by ui until it resumed.
