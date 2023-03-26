@@ -8,8 +8,8 @@ use egui::{plot, Align2, Color32, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
 
 use crate::app::graphics::{DrawShapeType, PlotColor, PlotDrawItem};
-use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::simulations::classic_simulation::Simulation;
+use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::simulations::state::SimulationState;
 use crate::app::simulations::template::PlotObjectFnVec;
 use crate::app::NVec2;
