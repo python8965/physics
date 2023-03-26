@@ -20,8 +20,6 @@ pub struct State {
     simulation_manager: SimulationManager,
 }
 
-
-
 impl State {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {

@@ -98,8 +98,7 @@ impl SimulationPlot {
                 let pos = simulation_objects[self.selected_index].position;
                 let selected = &mut simulation_objects[self.selected_index];
                 if selected.force_list.len() == 2 {
-                    selected.force_list[1] =
-                        vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
+                    selected.force_list[1] = vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
                 } else {
                     selected
                         .force_list

@@ -12,8 +12,6 @@ pub struct SimulationInitManager {
     initializing_data: Option<Box<dyn SimInit>>,
 }
 
-
-
 impl SimulationInitManager {
     pub fn new_simulation(
         &mut self,
