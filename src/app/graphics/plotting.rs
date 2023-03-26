@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use eframe::epaint::FontFamily;
 use egui::epaint::util::FloatOrd;
 use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
-use egui::{plot, Align2, Color32, InnerResponse, Pos2, RichText, TextStyle};
+use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
 
 use crate::app::graphics::{DrawShapeType, PlotColor, PlotDrawItem};
@@ -94,27 +94,23 @@ impl SimulationPlot {
                 if !self.dragging_object {}
             }
 
-            if response.dragged() {
-                if self.dragging_object {
-                    let pos = simulation_objects[self.selected_index].position;
-                    let mut selected = &mut simulation_objects[self.selected_index];
-                    if selected.force_list.len() == 2 {
-                        selected.force_list[1] =
-                            vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
-                    } else {
-                        selected
-                            .force_list
-                            .push(vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y]);
-                    }
+            if response.dragged() && self.dragging_object {
+                let pos = simulation_objects[self.selected_index].position;
+                let selected = &mut simulation_objects[self.selected_index];
+                if selected.force_list.len() == 2 {
+                    selected.force_list[1] =
+                        vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
+                } else {
+                    selected
+                        .force_list
+                        .push(vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y]);
                 }
             }
 
-            if response.drag_released() {
-                if self.dragging_object {
-                    let selected = &mut simulation_objects[self.selected_index];
-                    selected.force_list.pop();
-                    self.dragging_object = false;
-                }
+            if response.drag_released() && self.dragging_object {
+                let selected = &mut simulation_objects[self.selected_index];
+                selected.force_list.pop();
+                self.dragging_object = false;
             }
         }
     }
@@ -203,7 +199,7 @@ impl SimulationPlot {
                 [obj.position.x + scale, obj.position.y - scale],
             ]
             .into_iter()
-            .map(|e| [e[0] as f64, e[1] as f64])
+            .map(|e| [e[0], e[1]])
             .collect::<Vec<_>>()
             .into(),
         }
@@ -230,7 +226,7 @@ impl SimulationPlot {
         .color(color.get_color())
         .name(string.clone());
 
-        let arrows = PlotDrawItem::Arrows(arrows.color(color.get_color()).name(string.clone()));
+        let arrows = PlotDrawItem::Arrows(arrows.color(color.get_color()).name(string));
 
         let text = PlotDrawItem::Text(text);
 

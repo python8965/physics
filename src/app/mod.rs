@@ -1,5 +1,5 @@
 use egui::plot::{Legend, Plot};
-use egui::{vec2, Sense, Slider, Widget};
+use egui::{Slider, Widget};
 use nalgebra::Vector2;
 
 use crate::app::manager::SimulationManager;
@@ -15,18 +15,12 @@ mod util;
 pub type Float = f64;
 pub type NVec2 = Vector2<Float>;
 
+#[derive(Default)]
 pub struct State {
     simulation_manager: SimulationManager,
 }
 
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            // Example stuff:
-            simulation_manager: SimulationManager::default(),
-        }
-    }
-}
+
 
 impl State {
     /// Called once before the first frame.
@@ -47,7 +41,7 @@ impl State {
     }
 }
 
-fn setup_custom_fonts(ctx: &egui::Context) {
+fn setup_custom_fonts(_ctx: &egui::Context) {
     // Start with the default fonts (we will be adding to them rather than replacing them).
     // let mut fonts = egui::FontDefinitions::default();
 
@@ -121,7 +115,7 @@ impl eframe::App for State {
 
             ui.horizontal(|ui| {
                 ui.label("Time mul");
-                let slider =
+                let _slider =
                     Slider::new(self.simulation_manager.time_multiplier(), 0.5..=4.0).ui(ui);
             });
 

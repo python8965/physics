@@ -1,9 +1,9 @@
-use crate::app::graphics::plotting::{ObjectTraceLine, SimulationPlot};
+use crate::app::graphics::plotting::{SimulationPlot};
 use crate::app::init_manager::SimulationInitManager;
 use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation};
 use crate::app::simulations::state::{PlotInfoFilter, SimulationState};
 use crate::app::simulations::template::init::SimInit;
-use crate::app::simulations::template::{ClassicSimulationPreset, ClassicSimulationType};
+use crate::app::simulations::template::{ClassicSimulationType};
 use crate::app::Float;
 use egui::Ui;
 

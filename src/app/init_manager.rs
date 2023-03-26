@@ -5,21 +5,14 @@ use crate::app::simulations::template::{
 };
 use egui::Ui;
 
+#[derive(Default)]
 pub struct SimulationInitManager {
     is_sim_initializing: bool,
     is_sim_ready: bool,
     initializing_data: Option<Box<dyn SimInit>>,
 }
 
-impl Default for SimulationInitManager {
-    fn default() -> Self {
-        Self {
-            is_sim_initializing: false,
-            is_sim_ready: false,
-            initializing_data: None,
-        }
-    }
-}
+
 
 impl SimulationInitManager {
     pub fn new_simulation(

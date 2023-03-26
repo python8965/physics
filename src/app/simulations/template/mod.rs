@@ -64,7 +64,7 @@ impl ClassicSimulationPreset {
     }
 }
 
-fn basic_sim_init(data: BasicSimInit) -> ClassicSimulationPreset {
+fn basic_sim_init(_data: BasicSimInit) -> ClassicSimulationPreset {
     // value have any item
     // let force = value.theta * 5.0;
     // force_list.push(force) // how to?
