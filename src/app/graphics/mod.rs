@@ -21,18 +21,22 @@ pub enum PlotDrawItem {
 unsafe impl Send for PlotDrawItem {}
 unsafe impl Sync for PlotDrawItem {}
 
-pub enum PlotVectorType {
-    Velocity,
-    Force,
-    SigmaForce,
+pub enum PlotColor {
+    Object,
+    VelocityVector,
+    ForceVector,
+    SigmaForceVector,
+    TraceLine,
 }
 
-impl PlotVectorType {
-    pub fn to_color(&self) -> Color32 {
+impl PlotColor {
+    pub fn get_color(&self) -> Color32 {
         match self {
-            PlotVectorType::Velocity => Color32::DARK_RED,
-            PlotVectorType::Force => Color32::DEBUG_COLOR,
-            PlotVectorType::SigmaForce => Color32::GREEN,
+            PlotColor::Object => Color32::GRAY,
+            PlotColor::VelocityVector => Color32::BLUE,
+            PlotColor::ForceVector => Color32::RED,
+            PlotColor::SigmaForceVector => Color32::DARK_RED,
+            PlotColor::TraceLine => Color32::DARK_GRAY,
         }
     }
 }

@@ -1,16 +1,13 @@
-use eframe::epaint::FontFamily;
 use std::f64::consts::TAU;
+use std::fmt::Debug;
 
+use eframe::epaint::FontFamily;
 use egui::epaint::util::FloatOrd;
-use egui::plot::{Arrows, Line, Plot, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
-use egui::text::LayoutJob;
-use egui::{
-    plot, Align, Align2, Color32, CursorIcon, InnerResponse, LayerId, PointerButton, Pos2,
-    Response, RichText, TextFormat, TextStyle, Ui, Vec2, WidgetText,
-};
+use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
+use egui::{plot, Align2, Color32, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
 
-use crate::app::graphics::{DrawShapeType, PlotDrawItem, PlotVectorType};
+use crate::app::graphics::{DrawShapeType, PlotColor, PlotDrawItem};
 use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::simulations::simengine::Simulation;
 use crate::app::simulations::state::SimulationState;
@@ -21,6 +18,9 @@ pub struct SimulationPlot {
     init: bool,
     pub objects_fn: PlotObjectFnVec,
     pub trace_lines: Vec<ObjectTraceLine>,
+
+    state: SimulationState,
+
     near_value: f64,
     nearest_label: String,
     nearest_point: PlotPoint,
@@ -41,6 +41,7 @@ impl Default for SimulationPlot {
             trace_lines: vec![],
             dragging_object: false,
             selected_index: 0,
+            state: Default::default(),
         }
     }
 }
@@ -126,6 +127,7 @@ impl SimulationPlot {
     ) {
         self.nearest_label = String::new();
         self.near_value = 10.0;
+        self.state = state;
 
         if self.init {
             self.init = false;
@@ -147,11 +149,11 @@ impl SimulationPlot {
         }
 
         for (index, obj) in simulation_objects.iter_mut().enumerate() {
-            let mut items = vec![PlotDrawItem::Polygon(Polygon::new(
-                Self::get_object_points(obj),
-            ))];
+            let mut items = vec![PlotDrawItem::Polygon(
+                Polygon::new(Self::get_object_points(obj)).color(PlotColor::Object.get_color()),
+            )];
 
-            items.extend(self.get_info_shape(obj, index, state));
+            items.extend(self.get_info_shape(obj, index));
 
             for info in items {
                 info.draw(plot_ui);
@@ -209,19 +211,27 @@ impl SimulationPlot {
 
     fn get_info_vector(
         &self,
-        start: NVec2,
-        end: NVec2,
-        text: String,
-        state: SimulationState,
+        vector: (NVec2, NVec2),
+        color: PlotColor,
+        data: (impl ToString, impl Debug),
     ) -> [PlotDrawItem; 2] {
+        let string = data.0.to_string();
+        let value = data.1;
+
+        let start = vector.0;
+        let end = vector.1;
+
         let arrows = Arrows::new([start.x, start.y], [(end.x), (end.y)]);
 
         let text = Text::new(
             PlotPoint::from(((start + end) / 2.0).data.0[0]),
-            SimulationPlot::get_sized_text(&state, text),
-        );
+            SimulationPlot::get_sized_text(&self.state, format!("{string} : {value:?}")),
+        )
+        .color(color.get_color())
+        .name(string.clone());
 
-        let arrows = PlotDrawItem::Arrows(arrows.color(PlotVectorType::Velocity.to_color()));
+        let arrows = PlotDrawItem::Arrows(arrows.color(color.get_color()).name(string.clone()));
+
         let text = PlotDrawItem::Text(text);
 
         [text, arrows]
@@ -241,11 +251,10 @@ impl SimulationPlot {
         &mut self,
         obj: &mut ClassicSimulationObject,
         index: usize,
-        state: SimulationState,
     ) -> Vec<PlotDrawItem> {
         let mut draw_vec = vec![];
 
-        if state.filter.text {
+        if self.state.filter.text {
             let text = format!(
                 "Position : {:.3?}\nVelocity : {:.3?}\nForce(s) : {:.3?}\nMomentum : {:.3?}",
                 obj.position,
@@ -254,13 +263,13 @@ impl SimulationPlot {
                 obj.momentum
             );
 
-            draw_vec.push(PlotDrawItem::Text(plot::Text::new(
+            draw_vec.push(PlotDrawItem::Text(Text::new(
                 PlotPoint::new(obj.position.x, obj.position.y),
-                SimulationPlot::get_sized_text(&state, text),
+                SimulationPlot::get_sized_text(&self.state, text),
             )));
         }
 
-        if state.filter.sigma_force {
+        if self.state.filter.sigma_force {
             let sigma_force = obj
                 .force_list
                 .iter()
@@ -271,44 +280,47 @@ impl SimulationPlot {
 
             let vector = (obj.position, obj.position + sigma_force);
 
-            let text = format!("Sigma_Force {:.3?}", (vector.1 - vector.0));
+            let data = ("Sigma_Force", (vector.1 - vector.0));
 
-            let [text, arrows] = self.get_info_vector(vector.0, vector.1, text, state);
+            let [text, arrows] =
+                self.get_info_vector((vector.0, vector.1), PlotColor::SigmaForceVector, data);
 
-            draw_vec.push(text);
             draw_vec.push(arrows);
+            draw_vec.push(text);
         }
 
-        if state.filter.velocity {
+        if self.state.filter.velocity {
             let vector = (obj.position, obj.position + obj.velocity());
 
-            let text = format!("Velocity : {:.3?}", obj.velocity().norm());
+            let data = ("Velocity", obj.velocity().norm());
 
-            let [text, arrows] = self.get_info_vector(vector.0, vector.1, text, state);
-            draw_vec.push(text);
+            let [text, arrows] =
+                self.get_info_vector((vector.0, vector.1), PlotColor::VelocityVector, data);
             draw_vec.push(arrows);
+            draw_vec.push(text);
         }
 
-        if state.filter.force {
+        if self.state.filter.force {
             for force in &mut obj.force_list {
                 let vector = (obj.position, obj.position + *force);
 
-                let text = format!("force : {:.3?}", force);
+                let data = ("force", force);
 
-                let [text, arrows] = self.get_info_vector(vector.0, vector.1, text, state);
-                draw_vec.push(text);
+                let [text, arrows] =
+                    self.get_info_vector((vector.0, vector.1), PlotColor::ForceVector, data);
                 draw_vec.push(arrows);
+                draw_vec.push(text);
             }
         }
 
         {
             let trace_line = &mut self.trace_lines[index];
 
-            if state.filter.trace {
+            if self.state.filter.trace {
                 draw_vec.push(PlotDrawItem::Line(trace_line.line()));
             }
 
-            let res = trace_line.update(obj.position, state);
+            let res = trace_line.update(obj.position, self.state);
 
             if !res.1.is_empty() && res.0 < self.near_value {
                 self.near_value = res.0;
@@ -377,7 +389,7 @@ impl ObjectTraceLine {
 
     fn line(&self) -> Line {
         Line::new(self.data.clone())
-            .color(Color32::from_rgba_unmultiplied(245, 2, 216, 0))
+            .color(PlotColor::TraceLine.get_color())
             .name("trace line")
     }
 }

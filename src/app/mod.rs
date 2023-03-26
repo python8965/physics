@@ -1,4 +1,4 @@
-use egui::plot::Plot;
+use egui::plot::{Legend, Plot};
 use egui::{vec2, Sense, Slider, Widget};
 use nalgebra::Vector2;
 
@@ -121,16 +121,20 @@ impl eframe::App for State {
             ui.horizontal(|ui| {
                 ui.label("Time mul");
                 let slider =
-                    Slider::new(self.simulation_manager.time_multiplier(), 0.5..=2.0).ui(ui);
+                    Slider::new(self.simulation_manager.time_multiplier(), 0.5..=4.0).ui(ui);
             });
 
             ui.separator();
 
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    if ui.small_button("Pause/Resume").clicked() {
-                        self.simulation_manager.toggle_animation();
-                    }
+                    let text = if *self.simulation_manager.paused() {
+                        "Resume"
+                    } else {
+                        "Pause"
+                    };
+
+                    ui.toggle_value(self.simulation_manager.paused(), text);
                 });
 
                 let _buttons = SIM
@@ -185,7 +189,11 @@ impl eframe::App for State {
             if let (Some(simulation), simulation_plot, state) =
                 self.simulation_manager.get_simulation()
             {
-                let mut plot = Plot::new("Plot").allow_boxed_zoom(false).data_aspect(1.0);
+                let legend = Legend::default();
+                let mut plot = Plot::new("Plot")
+                    .allow_boxed_zoom(false)
+                    .data_aspect(1.0)
+                    .legend(legend);
 
                 if simulation_plot.is_dragging_object() {
                     plot = plot.allow_drag(false)

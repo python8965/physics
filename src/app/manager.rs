@@ -100,7 +100,7 @@ impl SimulationManager {
         }
     }
 
-    pub fn toggle_animation(&mut self) {
-        self.is_paused = !self.is_paused;
+    pub fn paused(&mut self) -> &mut bool {
+        &mut self.is_paused
     }
 }
