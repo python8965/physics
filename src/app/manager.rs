@@ -1,8 +1,11 @@
 use crate::app::graphics::plotting::{ObjectTraceLine, SimulationPlot};
-use crate::app::simulations::simengine::{ClassicSimulation, Simulation};
+use crate::app::init_manager::SimulationInitManager;
+use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation};
 use crate::app::simulations::state::{PlotInfoFilter, SimulationState};
+use crate::app::simulations::template::init::SimInit;
 use crate::app::simulations::template::{ClassicSimulationPreset, ClassicSimulationType};
 use crate::app::Float;
+use egui::Ui;
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
@@ -15,6 +18,8 @@ pub struct SimulationManager {
 
     is_paused: bool,
     last_step_time: f64,
+
+    init_manager: SimulationInitManager,
 }
 
 impl Default for SimulationManager {
@@ -26,6 +31,7 @@ impl Default for SimulationManager {
             sim_time_multiplier: 1.0,
             is_paused: true,
             last_step_time: 0.0,
+            init_manager: SimulationInitManager::default(),
         }
     }
 }
@@ -65,12 +71,14 @@ impl SimulationManager {
         )
     }
 
-    pub fn new_simulation(&mut self, new_simulation: ClassicSimulationType) {
-        let ClassicSimulationPreset {
-            simulation_objects,
-            objects_fn,
-        } = new_simulation.get_preset();
+    pub fn initialize_ui(&mut self, ui: &mut Ui) {
+        self.init_manager.ui(ui);
+    }
 
+    pub fn new_simulation(&mut self, simulation_type: ClassicSimulationType) {
+        let (simulation_objects, objects_fn) = self.init_manager.new_simulation(simulation_type);
+
+        self.pause();
         self.simulation_plot = SimulationPlot::new(simulation_objects.len(), objects_fn);
 
         self.simulation
@@ -96,11 +104,33 @@ impl SimulationManager {
                 }
             }
         } else {
+            if self.init_manager.is_initializing() {
+                self.new_simulation(self.init_manager.get_current_sim_init_type());
+            }
+
             self.last_step_time = last_time;
         }
     }
 
-    pub fn paused(&mut self) -> &mut bool {
-        &mut self.is_paused
+    fn pause(&mut self) {
+        self.is_paused = true;
+    }
+
+    fn resume(&mut self) {
+        self.init_manager.resume();
+
+        self.is_paused = false;
+    }
+
+    pub fn toggle_pause(&mut self) {
+        if self.is_paused {
+            self.resume();
+        } else {
+            self.pause();
+        }
+    }
+
+    pub fn get_pause(&self) -> bool {
+        self.is_paused
     }
 }

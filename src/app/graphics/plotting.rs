@@ -9,7 +9,7 @@ use nalgebra::vector;
 
 use crate::app::graphics::{DrawShapeType, PlotColor, PlotDrawItem};
 use crate::app::simulations::object::ClassicSimulationObject;
-use crate::app::simulations::simengine::Simulation;
+use crate::app::simulations::classic_simulation::Simulation;
 use crate::app::simulations::state::SimulationState;
 use crate::app::simulations::template::PlotObjectFnVec;
 use crate::app::NVec2;
@@ -111,7 +111,7 @@ impl SimulationPlot {
 
             if response.drag_released() {
                 if self.dragging_object {
-                    let mut selected = &mut simulation_objects[self.selected_index];
+                    let selected = &mut simulation_objects[self.selected_index];
                     selected.force_list.pop();
                     self.dragging_object = false;
                 }

@@ -7,7 +7,7 @@
 0.1.2
 - filter fold in gui
 - sim 2 add
-- minor change (+ 1 TODO)
+- minor change
 
 0.1.3
 - add interaction(drag) to simulation object (current only force)
@@ -18,3 +18,7 @@
 - coloring all things
 - visibility improve
 - by plot legends
+
+0.1.5
+- now simulation can initialized!
+- simulation can init by ui until it resumed.

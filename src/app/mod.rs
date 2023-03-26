@@ -7,9 +7,9 @@ use crate::app::simulations::state::update_simulation_state;
 use crate::app::simulations::template::SIM;
 
 mod graphics;
+mod init_manager;
 mod manager;
 mod simulations;
-mod ui;
 mod util;
 
 pub type Float = f64;
@@ -118,6 +118,7 @@ impl eframe::App for State {
                 "Elapsed Time (ΣΔt) = {:.2?}",
                 self.simulation_manager.get_time()
             ));
+
             ui.horizontal(|ui| {
                 ui.label("Time mul");
                 let slider =
@@ -126,40 +127,41 @@ impl eframe::App for State {
 
             ui.separator();
 
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    let text = if *self.simulation_manager.paused() {
-                        "Resume"
-                    } else {
-                        "Pause"
-                    };
+            ui.horizontal(|ui| {
+                let paused = self.simulation_manager.get_pause();
+                let text = if paused { "Resume" } else { "Pause" };
 
-                    ui.toggle_value(self.simulation_manager.paused(), text);
-                });
-
-                let _buttons = SIM
-                    .iter()
-                    .map(|sim_type| {
-                        let button = ui.button(sim_type.get_name());
-
-                        if button.clicked() {
-                            self.simulation_manager.new_simulation(*sim_type);
-                        }
-
-                        button
-                    })
-                    .collect::<Vec<_>>();
-
-                // TODO: Source Code Demonstrate
-                // if ui.button("source code of current app").clicked() {
-                //     egui::Window::new("Source Code").show(ctx, |ui| {
-                //         ui.label(format!(
-                //             "{:?}",
-                //             self.simulation_manager.get_simulation_type()
-                //         ));
-                //     });
-                // }
+                if ui.selectable_label(paused, text).clicked() {
+                    self.simulation_manager.toggle_pause();
+                }
             });
+
+            let _buttons = SIM
+                .iter()
+                .map(|sim_type| {
+                    let button = ui.button(sim_type.get_name());
+
+                    if button.clicked() {
+                        self.simulation_manager.new_simulation(*sim_type);
+                    }
+
+                    button
+                })
+                .collect::<Vec<_>>();
+
+            ui.separator();
+
+            self.simulation_manager.initialize_ui(ui);
+
+            // TODO: Source Code Demonstrate
+            // if ui.button("source code of current app").clicked() {
+            //     egui::Window::new("Source Code").show(ctx, |ui| {
+            //         ui.label(format!(
+            //             "{:?}",
+            //             self.simulation_manager.get_simulation_type()
+            //         ));
+            //     });
+            // }
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 ui.horizontal(|ui| {

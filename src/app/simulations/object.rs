@@ -1,9 +1,6 @@
-use crate::app::graphics::plotting::ObjectTraceLine;
 use crate::app::graphics::DrawShapeType;
 use crate::app::NVec2;
 use std::ops::Div;
-
-pub struct SimulationObjectShape {}
 
 #[derive(Clone, Debug)]
 pub struct ClassicSimulationObject {

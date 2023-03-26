@@ -1,14 +1,20 @@
+use std::ops::Mul;
+
+use egui::plot::{Line, PlotPoints};
+use nalgebra::Vector2;
+
 use crate::app::graphics::{DrawShapeType, PlotDrawItem};
 use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::simulations::state::SimulationState;
+use crate::app::simulations::template::init::{BasicSimInit, SimInit};
 use crate::app::NVec2;
-use egui::plot::{Line, PlotPoints};
-use nalgebra::Vector2;
-use std::ops::Mul;
+
+pub mod init;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClassicSimulationType {
     BasicSim,
+    BasicSimWithInit(BasicSimInit),
     ProjectileMotionSim,
     ProjectileMotionSim2,
 }
@@ -18,17 +24,26 @@ impl ClassicSimulationType {
         format!("{:?}", self)
     }
 
-    pub fn get_preset(self) -> ClassicSimulationPreset {
+    pub fn get_preset_with_ui(self) -> ClassicSimulationPreset {
         match self {
             ClassicSimulationType::BasicSim => basic_sim(),
             ClassicSimulationType::ProjectileMotionSim => projectile_motion_sim(),
             ClassicSimulationType::ProjectileMotionSim2 => projectile_motion_2_sim(),
+            ClassicSimulationType::BasicSimWithInit(init) => basic_sim_init(init),
+        }
+    }
+
+    pub fn get_data(self) -> Option<Box<dyn SimInit>> {
+        match self {
+            ClassicSimulationType::BasicSimWithInit(data) => Some(Box::new(data)),
+            _ => None,
         }
     }
 }
 
 pub const SIM: &[ClassicSimulationType] = &[
     ClassicSimulationType::BasicSim,
+    ClassicSimulationType::BasicSimWithInit(BasicSimInit { theta: 0.0 }),
     ClassicSimulationType::ProjectileMotionSim,
     ClassicSimulationType::ProjectileMotionSim2,
 ];
@@ -47,6 +62,22 @@ impl ClassicSimulationPreset {
             objects_fn: obj,
         }
     }
+}
+
+fn basic_sim_init(data: BasicSimInit) -> ClassicSimulationPreset {
+    // value have any item
+    // let force = value.theta * 5.0;
+    // force_list.push(force) // how to?
+    let a = ClassicSimulationObject {
+        mass: 5.0,
+        shape: DrawShapeType::Box,
+        scale: None,
+        force_list: vec![Vector2::new(0.0, -9.8)],
+        position: Vector2::new(1.0, 0.0),
+        ..ClassicSimulationObject::default()
+    };
+
+    ClassicSimulationPreset::new(vec![a], vec![])
 }
 
 fn basic_sim() -> ClassicSimulationPreset {
