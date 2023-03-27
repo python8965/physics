@@ -2,6 +2,7 @@ use crate::app::graphics::DrawShapeType;
 use crate::app::NVec2;
 use std::ops::Div;
 
+#[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct ClassicSimulationObject {
     pub position: NVec2,

@@ -1,6 +1,6 @@
 [package]
 name = "physics"
-version = "0.1.0"
+version = "0.3.1"
 authors = ["AKETON <python8965@gmail.com>"]
 edition = "2021"
 rust-version = "1.65"
@@ -13,7 +13,7 @@ eframe = { version = "0.21.0", default-features = false, features = [
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
 ] }
 
-log = "0.4.17" # logging
+tracing = "0.1.37" # logging
 
 
 nalgebra = "0.32.1" # math

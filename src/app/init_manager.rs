@@ -13,7 +13,7 @@ pub struct SimulationInitManager {
 }
 
 impl SimulationInitManager {
-    pub fn new_simulation(
+    pub fn get_new_simulation_data(
         &mut self,
         simulation_type: ClassicSimulationType,
     ) -> (Vec<ClassicSimulationObject>, PlotObjectFnVec) {
@@ -39,6 +39,22 @@ impl SimulationInitManager {
         (simulation_objects, objects_fn)
     }
 
+    pub fn get_update_simulation_data(
+        &mut self,
+    ) -> (Vec<ClassicSimulationObject>, PlotObjectFnVec) {
+        let ClassicSimulationPreset {
+            simulation_objects,
+            objects_fn,
+        } = self
+            .initializing_data
+            .as_ref()
+            .unwrap()
+            .to_simulation_type()
+            .get_preset_with_ui();
+
+        (simulation_objects, objects_fn)
+    }
+
     pub fn ui(&mut self, ui: &mut Ui) {
         if self.is_sim_initializing {
             self.initializing_data.as_mut().unwrap().ui(ui);
@@ -49,8 +65,8 @@ impl SimulationInitManager {
         self.is_sim_initializing
     }
 
-    pub fn get_current_sim_init_type(&self) -> ClassicSimulationType {
-        self.initializing_data.as_ref().unwrap().to_type()
+    pub fn get_current_sim_init_type(&self) -> &Box<dyn SimInit> {
+        self.initializing_data.as_ref().unwrap()
     }
 
     pub fn resume(&mut self) {

@@ -5,7 +5,7 @@ use std::fmt::Debug;
 pub trait SimInit: Debug {
     fn ui(&mut self, ui: &mut Ui);
 
-    fn to_type(&self) -> ClassicSimulationType;
+    fn to_simulation_type(&self) -> ClassicSimulationType;
 }
 #[derive(Clone, Copy, Debug)]
 pub struct BasicSimInit {
@@ -19,7 +19,7 @@ impl SimInit for BasicSimInit {
             .ui(ui);
     }
 
-    fn to_type(&self) -> ClassicSimulationType {
+    fn to_simulation_type(&self) -> ClassicSimulationType {
         ClassicSimulationType::BasicSimWithInit(*self)
     }
 }

@@ -5,6 +5,7 @@ use nalgebra::Vector2;
 use crate::app::manager::SimulationManager;
 use crate::app::simulations::state::update_simulation_state;
 use crate::app::simulations::template::SIM;
+use crate::app::util::FrameHistory;
 
 mod graphics;
 mod init_manager;
@@ -18,6 +19,7 @@ pub type NVec2 = Vector2<Float>;
 #[derive(Default)]
 pub struct State {
     simulation_manager: SimulationManager,
+    frame_history: FrameHistory,
 }
 
 impl State {
@@ -80,10 +82,12 @@ fn setup_custom_fonts(_ctx: &egui::Context) {
 }
 
 impl eframe::App for State {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let current_time = ctx.input(|i| i.time);
-        self.simulation_manager.step(current_time);
+        let cpu_usage = frame.info().cpu_usage;
 
+        self.simulation_manager.step(current_time);
+        self.frame_history.on_new_frame(current_time, cpu_usage);
         egui::SidePanel::left("Simulation Type").show(ctx, |ui| {
             ui.collapsing("CONTROL INFO (click)", |ui| {
                 ui.label("Mouse drag : move chart\nCtrl + Drag : zoom")
@@ -91,20 +95,22 @@ impl eframe::App for State {
 
             ui.separator();
             ui.collapsing("Drawing Filter", |ui| {
-                ui.checkbox(&mut self.simulation_manager.filter_mut().text, "text");
-                ui.checkbox(&mut self.simulation_manager.filter_mut().force, "force");
+                ui.checkbox(&mut self.simulation_manager.settings_mut().text, "text");
+                ui.checkbox(&mut self.simulation_manager.settings_mut().force, "force");
                 ui.checkbox(
-                    &mut self.simulation_manager.filter_mut().velocity,
+                    &mut self.simulation_manager.settings_mut().velocity,
                     "velocity",
                 );
                 ui.checkbox(
-                    &mut self.simulation_manager.filter_mut().sigma_force,
+                    &mut self.simulation_manager.settings_mut().sigma_force,
                     "sigma_force",
                 );
-                ui.checkbox(&mut self.simulation_manager.filter_mut().trace, "trace");
+                ui.checkbox(&mut self.simulation_manager.settings_mut().trace, "trace");
             });
 
             ui.separator();
+
+            ui.label(format!("fps : {:.0?}", self.frame_history.fps()));
 
             ui.label(format!(
                 "Elapsed Time (ΣΔt) = {:.2?}",
@@ -187,6 +193,7 @@ impl eframe::App for State {
                 let mut plot = Plot::new("Plot")
                     .allow_boxed_zoom(false)
                     .data_aspect(1.0)
+                    .allow_double_click_reset(false)
                     .legend(legend);
 
                 if simulation_plot.is_dragging_object() {

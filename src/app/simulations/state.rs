@@ -14,13 +14,13 @@ pub fn update_simulation_state(state: &mut SimulationState, plot_ui: &mut PlotUi
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SimulationState {
     pub(crate) time: f64,
-    pub(crate) filter: PlotInfoFilter,
+    pub(crate) settings: PlotSettings,
     pub(crate) pointer: Option<PlotPoint>,
     pub(crate) zoom: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct PlotInfoFilter {
+pub struct PlotSettings {
     pub(crate) force: bool,
     pub(crate) sigma_force: bool,
     pub(crate) velocity: bool,
@@ -28,7 +28,7 @@ pub struct PlotInfoFilter {
     pub(crate) text: bool,
 }
 
-impl Default for PlotInfoFilter {
+impl Default for PlotSettings {
     fn default() -> Self {
         Self {
             force: false,

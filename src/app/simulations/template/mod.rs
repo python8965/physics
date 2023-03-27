@@ -64,15 +64,17 @@ impl ClassicSimulationPreset {
     }
 }
 
-fn basic_sim_init(_data: BasicSimInit) -> ClassicSimulationPreset {
+fn basic_sim_init(data: BasicSimInit) -> ClassicSimulationPreset {
     // value have any item
     // let force = value.theta * 5.0;
     // force_list.push(force) // how to?
+    let force = data.theta.to_radians().sin_cos();
+    let force = Vector2::new(force.0, force.1) * 10.0;
     let a = ClassicSimulationObject {
         mass: 5.0,
         shape: DrawShapeType::Box,
         scale: None,
-        force_list: vec![Vector2::new(0.0, -9.8)],
+        force_list: vec![Vector2::new(0.0, -9.8), Vector2::new(0.0, 0.0), force],
         position: Vector2::new(1.0, 0.0),
         ..ClassicSimulationObject::default()
     };

@@ -1,7 +1,8 @@
 use crate::app::graphics::plotting::SimulationPlot;
 use crate::app::init_manager::SimulationInitManager;
 use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation};
-use crate::app::simulations::state::{PlotInfoFilter, SimulationState};
+use crate::app::simulations::state::{PlotSettings, SimulationState};
+use crate::app::simulations::template::init::SimInit;
 use crate::app::simulations::template::ClassicSimulationType;
 use crate::app::Float;
 use egui::Ui;
@@ -16,7 +17,7 @@ pub struct SimulationManager {
     sim_time_multiplier: f64,
 
     is_paused: bool,
-    last_step_time: f64,
+    last_time: f64,
 
     init_manager: SimulationInitManager,
 }
@@ -29,7 +30,7 @@ impl Default for SimulationManager {
             simulation_plot: SimulationPlot::default(),
             sim_time_multiplier: 1.0,
             is_paused: true,
-            last_step_time: 0.0,
+            last_time: 0.0,
             init_manager: SimulationInitManager::default(),
         }
     }
@@ -40,8 +41,8 @@ impl SimulationManager {
         &mut self.sim_time_multiplier
     }
 
-    pub fn filter_mut(&mut self) -> &mut PlotInfoFilter {
-        &mut self.sim_state.filter
+    pub fn settings_mut(&mut self) -> &mut PlotSettings {
+        &mut self.sim_state.settings
     }
 
     pub fn get_time(&self) -> f64 {
@@ -75,7 +76,8 @@ impl SimulationManager {
     }
 
     pub fn new_simulation(&mut self, simulation_type: ClassicSimulationType) {
-        let (simulation_objects, objects_fn) = self.init_manager.new_simulation(simulation_type);
+        let (simulation_objects, objects_fn) =
+            self.init_manager.get_new_simulation_data(simulation_type);
 
         self.pause();
         self.simulation_plot = SimulationPlot::new(simulation_objects.len(), objects_fn);
@@ -86,15 +88,24 @@ impl SimulationManager {
         self.sim_state.time = 0.0;
     }
 
-    pub fn step(&mut self, last_time: f64) {
+    pub fn update_simulation(&mut self) {
+        let (simulation_objects, objects_fn) = self.init_manager.get_update_simulation_data();
+        let _ = std::mem::replace(
+            self.simulation.as_mut().unwrap().get_children(),
+            simulation_objects,
+        );
+        self.simulation_plot.objects_fn = objects_fn;
+    }
+
+    pub fn step(&mut self, current_time: f64) {
         if !self.is_paused {
-            let mut dt = last_time - self.last_step_time;
+            let mut dt = current_time - self.last_time;
 
             dt *= self.sim_time_multiplier;
 
             self.sim_state.time += dt;
 
-            self.last_step_time = last_time;
+            self.last_time = current_time;
 
             if let Some(simulation) = &mut self.simulation {
                 if !self.is_paused {
@@ -104,10 +115,10 @@ impl SimulationManager {
             }
         } else {
             if self.init_manager.is_initializing() {
-                self.new_simulation(self.init_manager.get_current_sim_init_type());
+                self.update_simulation();
             }
 
-            self.last_step_time = last_time;
+            self.last_time = current_time;
         }
     }
 

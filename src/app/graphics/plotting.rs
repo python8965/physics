@@ -6,6 +6,7 @@ use egui::epaint::util::FloatOrd;
 use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
 use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
+use tracing::info;
 
 use crate::app::graphics::{DrawShapeType, PlotColor, PlotDrawItem};
 use crate::app::simulations::classic_simulation::Simulation;
@@ -91,7 +92,6 @@ impl SimulationPlot {
                         break;
                     }
                 }
-                if !self.dragging_object {}
             }
 
             if response.dragged() && self.dragging_object {
@@ -105,12 +105,12 @@ impl SimulationPlot {
                         .push(vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y]);
                 }
             }
+        }
 
-            if response.drag_released() && self.dragging_object {
-                let selected = &mut simulation_objects[self.selected_index];
-                selected.force_list.pop();
-                self.dragging_object = false;
-            }
+        if !response.dragged() && self.dragging_object {
+            let selected = &mut simulation_objects[self.selected_index];
+            selected.force_list.remove(1);
+            self.dragging_object = false;
         }
     }
 
@@ -249,7 +249,7 @@ impl SimulationPlot {
     ) -> Vec<PlotDrawItem> {
         let mut draw_vec = vec![];
 
-        if self.state.filter.text {
+        if self.state.settings.text {
             let text = format!(
                 "Position : {:.3?}\nVelocity : {:.3?}\nForce(s) : {:.3?}\nMomentum : {:.3?}",
                 obj.position,
@@ -264,7 +264,7 @@ impl SimulationPlot {
             )));
         }
 
-        if self.state.filter.sigma_force {
+        if self.state.settings.sigma_force {
             let sigma_force = obj
                 .force_list
                 .iter()
@@ -284,7 +284,7 @@ impl SimulationPlot {
             draw_vec.push(text);
         }
 
-        if self.state.filter.velocity {
+        if self.state.settings.velocity {
             let vector = (obj.position, obj.position + obj.velocity());
 
             let data = ("Velocity", obj.velocity().norm());
@@ -295,7 +295,7 @@ impl SimulationPlot {
             draw_vec.push(text);
         }
 
-        if self.state.filter.force {
+        if self.state.settings.force {
             for force in &mut obj.force_list {
                 let vector = (obj.position, obj.position + *force);
 
@@ -311,7 +311,7 @@ impl SimulationPlot {
         {
             let trace_line = &mut self.trace_lines[index];
 
-            if self.state.filter.trace {
+            if self.state.settings.trace {
                 draw_vec.push(PlotDrawItem::Line(trace_line.line()));
             }
 
