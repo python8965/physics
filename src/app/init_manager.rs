@@ -65,9 +65,9 @@ impl SimulationInitManager {
         self.is_sim_initializing
     }
 
-    pub fn get_current_sim_init_type(&self) -> &Box<dyn SimInit> {
-        self.initializing_data.as_ref().unwrap()
-    }
+    // pub fn get_current_sim_init_type(&self) -> &Box<dyn SimInit> {
+    //     self.initializing_data.as_ref().unwrap()
+    // }
 
     pub fn resume(&mut self) {
         self.is_sim_initializing = false;

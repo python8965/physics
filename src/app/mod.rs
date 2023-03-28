@@ -1,5 +1,5 @@
-use egui::{Slider, Widget};
 use egui::plot::{Legend, Plot};
+use egui::{Slider, Widget};
 use nalgebra::Vector2;
 
 use crate::app::audio::player::MusicPlayer;
@@ -170,6 +170,8 @@ impl eframe::App for State {
             // }
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                ui.label("Update : Shift + F5 / use Secret(Private) Browser");
+
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
                     ui.label("made by ");

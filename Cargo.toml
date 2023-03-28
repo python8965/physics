@@ -15,7 +15,7 @@ eframe = { version = "0.21.0", default-features = false, features = [
 ] }
 
 # audio
-rodio = "0.17.1"
+rodio = { version = "0.17.1", features = ["wasm-bindgen"] }
 
 # io
 ehttp = "0.2.0"

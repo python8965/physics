@@ -2,7 +2,6 @@ use crate::app::graphics::plotting::SimulationPlot;
 use crate::app::init_manager::SimulationInitManager;
 use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation};
 use crate::app::simulations::state::{PlotSettings, SimulationState};
-use crate::app::simulations::template::init::SimInit;
 use crate::app::simulations::template::ClassicSimulationType;
 use crate::app::Float;
 use egui::Ui;
@@ -49,13 +48,13 @@ impl SimulationManager {
         self.sim_state.time
     }
 
-    pub fn state(&mut self) -> SimulationState {
-        self.sim_state
-    }
-
-    pub fn set_state(&mut self, state: SimulationState) {
-        self.sim_state = state
-    }
+    // pub fn state(&mut self) -> SimulationState {
+    //     self.sim_state
+    // }
+    //
+    // pub fn set_state(&mut self, state: SimulationState) {
+    //     self.sim_state = state
+    // }
 
     pub fn get_simulation(
         &mut self,
