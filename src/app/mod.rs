@@ -1,8 +1,8 @@
-use crate::app::audio::player::MusicPlayer;
-use egui::plot::{Legend, Plot};
 use egui::{Slider, Widget};
+use egui::plot::{Legend, Plot};
 use nalgebra::Vector2;
 
+use crate::app::audio::player::MusicPlayer;
 use crate::app::manager::SimulationManager;
 use crate::app::simulations::state::update_simulation_state;
 use crate::app::simulations::template::SIM;
@@ -11,6 +11,7 @@ use crate::app::util::FrameHistory;
 mod audio;
 mod graphics;
 mod init_manager;
+mod io;
 mod manager;
 mod simulations;
 mod util;
@@ -126,9 +127,9 @@ impl eframe::App for State {
                     Slider::new(self.simulation_manager.time_multiplier(), 0.5..=4.0).ui(ui);
             });
 
-            if ui.button("button").clicked() {
-                self.music_player.play_audio();
-            }
+            ui.separator();
+
+            self.music_player.ui(ui);
 
             ui.separator();
 

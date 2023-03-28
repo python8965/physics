@@ -1,87 +1,87 @@
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, FromSample, Sample, SampleFormat, SizedSample, Stream, StreamConfig};
-use std::fmt::Debug;
-use tracing::{debug, error, info};
+use crate::app::io::get_file;
+use egui::mutex::Mutex;
+use egui::{Slider, Ui, Widget};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
+use std::io::{BufReader, Cursor};
+use std::mem;
+use std::sync::Arc;
+use std::time::Duration;
 
 pub struct MusicPlayer {
-    config: StreamConfig,
-    device: Device,
-    stream: Option<Stream>,
-    format: SampleFormat,
+    stream: OutputStream,
+    stream_handle: OutputStreamHandle,
+    current_sink: Sink,
+
+    data: Arc<Mutex<Vec<u8>>>,
+
+    volume: f32,
 }
 
 impl Default for MusicPlayer {
     fn default() -> Self {
-        let host = cpal::default_host();
-        let device = host
-            .default_output_device()
-            .expect("failed to find a default output device");
-
-        info!(dev = device.name().unwrap());
-        let config = device.default_output_config().unwrap();
-        let format = config.sample_format();
-
+        let (stream, stream_handle) = OutputStream::try_default().unwrap();
+        let current_sink = Sink::try_new(&stream_handle).unwrap();
+        let volume = 0.25;
+        current_sink.set_volume(volume);
         Self {
-            device,
-            config: config.into(),
-            format,
-            stream: None,
+            stream,
+            stream_handle,
+            current_sink,
+            data: Arc::new(Mutex::new(vec![])),
+            volume,
         }
     }
 }
 
 impl MusicPlayer {
-    fn run<T>(&mut self) -> Result<(), anyhow::Error>
-    where
-        T: SizedSample + FromSample<f32> + Debug,
-    {
-        let sample_rate = self.config.sample_rate.0 as f32;
-        let channels = self.config.channels as usize;
-        info!("as sample rate {} as channel {}", sample_rate, channels);
-        // Produce a sinusoid of maximum amplitude.
-        let mut sample_clock = 0f32;
-        let mut next_value = move || {
-            sample_clock = (sample_clock + 1.0) % sample_rate;
-            (sample_clock * 440.0 * 2.0 * std::f32::consts::PI / sample_rate).sin()
-        };
-
-        let err_fn = |err| error!("an error occurred on stream: {}", err);
-
-        let stream = self.device.build_output_stream(
-            &self.config,
-            move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
-                Self::write_data(data, channels, &mut next_value)
-            },
-            err_fn,
-            None,
-        )?;
-
-        stream.play()?;
-
-        self.stream.replace(stream);
-        //std::thread::sleep(std::time::Duration::from_millis(1000));
-        Ok(())
+    fn run(data: Arc<Mutex<Vec<u8>>>, name: impl Into<String>) {
+        get_file(name.into(), data);
     }
 
-    fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> f32)
-    where
-        T: Sample + FromSample<f32> + Debug,
-    {
-        for frame in output.chunks_mut(channels) {
-            let value: T = T::from_sample(next_sample());
-            for sample in frame.iter_mut() {
-                *sample = value;
-            }
-        }
-    }
+    pub fn ui(&mut self, ui: &mut Ui) {
+        let Self {
+            current_sink, data, ..
+        } = self;
 
-    pub fn play_audio(&mut self) {
-        match self.format {
-            cpal::SampleFormat::F32 => self.run::<f32>(),
-            cpal::SampleFormat::I16 => self.run::<i16>(),
-            cpal::SampleFormat::U16 => self.run::<u16>(),
-            _ => panic!("unsupported sample format"),
+        let sink = current_sink;
+        let raw_data = &mut *data.lock();
+
+        if !raw_data.is_empty() {
+            let file = BufReader::new(Cursor::new(mem::take(raw_data)));
+
+            // Decode that sound file into a source
+            let source = Decoder::new(file)
+                .unwrap()
+                .fade_in(Duration::from_millis(1000));
+
+            sink.append(source.convert_samples::<f32>());
         }
-        .expect("Run<T> ERROR");
+
+        if !sink.empty() {
+            ui.horizontal(|ui| {
+                if ui
+                    .button(if sink.is_paused() { "▶" } else { "⏸" })
+                    .clicked()
+                {
+                    if sink.is_paused() {
+                        sink.play()
+                    } else {
+                        sink.pause()
+                    }
+                }
+
+                if Slider::new(&mut self.volume, 0.0..=1.0)
+                    .text("Volume")
+                    .ui(ui)
+                    .dragged()
+                {
+                    sink.set_volume(self.volume);
+                }
+            });
+        }
+
+        if ui.button("Play? (Sound Warning)").clicked() {
+            Self::run(data.clone(), "/suzume.ogg");
+        }
     }
 }
