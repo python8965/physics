@@ -34,3 +34,4 @@ PATCH++ when BUGFIXES/MINOR CHANGE
 - inited simulation view and interaction reset problem fix
 - show fps
 - now we can show inited simulation / base_init_sim
+- dep log to tracing

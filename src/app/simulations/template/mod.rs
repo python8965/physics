@@ -3,7 +3,7 @@ use std::ops::Mul;
 use egui::plot::{Line, PlotPoints};
 use nalgebra::Vector2;
 
-use crate::app::graphics::{DrawShapeType, PlotDrawItem};
+use crate::app::graphics::define::{DrawShapeType, PlotDrawItem};
 use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::simulations::state::SimulationState;
 use crate::app::simulations::template::init::{BasicSimInit, SimInit};

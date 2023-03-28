@@ -1,4 +1,4 @@
-use crate::app::graphics::DrawShapeType;
+use crate::app::graphics::define::DrawShapeType;
 use crate::app::NVec2;
 use std::ops::Div;
 

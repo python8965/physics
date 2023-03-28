@@ -1,19 +1,17 @@
 use std::f64::consts::TAU;
 use std::fmt::Debug;
 
-use eframe::epaint::FontFamily;
-use egui::epaint::util::FloatOrd;
-use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
-use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
-use nalgebra::vector;
-use tracing::info;
-
-use crate::app::graphics::{DrawShapeType, PlotColor, PlotDrawItem};
+use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem};
 use crate::app::simulations::classic_simulation::Simulation;
 use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::simulations::state::SimulationState;
 use crate::app::simulations::template::PlotObjectFnVec;
 use crate::app::NVec2;
+use eframe::epaint::FontFamily;
+use egui::epaint::util::FloatOrd;
+use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
+use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
+use nalgebra::vector;
 
 pub struct SimulationPlot {
     init: bool,

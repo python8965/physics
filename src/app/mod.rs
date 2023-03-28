@@ -2,13 +2,16 @@ use egui::plot::{Legend, Plot};
 use egui::{Slider, Widget};
 use nalgebra::Vector2;
 
+use crate::app::audio::player::MusicPlayer;
 use crate::app::manager::SimulationManager;
 use crate::app::simulations::state::update_simulation_state;
 use crate::app::simulations::template::SIM;
 use crate::app::util::FrameHistory;
 
+mod audio;
 mod graphics;
 mod init_manager;
+mod io;
 mod manager;
 mod simulations;
 mod util;
@@ -19,6 +22,7 @@ pub type NVec2 = Vector2<Float>;
 #[derive(Default)]
 pub struct State {
     simulation_manager: SimulationManager,
+    music_player: MusicPlayer,
     frame_history: FrameHistory,
 }
 
@@ -125,6 +129,10 @@ impl eframe::App for State {
 
             ui.separator();
 
+            self.music_player.ui(ui);
+
+            ui.separator();
+
             ui.horizontal(|ui| {
                 let paused = self.simulation_manager.get_pause();
                 let text = if paused { "Resume" } else { "Pause" };
@@ -162,6 +170,8 @@ impl eframe::App for State {
             // }
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                ui.label("Update : Shift + F5 / use Secret(Private) Browser");
+
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
                     ui.label("made by ");
