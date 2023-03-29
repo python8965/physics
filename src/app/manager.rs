@@ -5,6 +5,7 @@ use crate::app::simulations::state::{PlotSettings, SimulationState};
 use crate::app::simulations::template::ClassicSimulationType;
 use crate::app::Float;
 use egui::Ui;
+use tracing::info;
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
@@ -99,6 +100,8 @@ impl SimulationManager {
     pub fn step(&mut self, current_time: f64) {
         if !self.is_paused {
             let mut dt = current_time - self.last_time;
+
+            info!(dt);
 
             dt *= self.sim_time_multiplier;
 

@@ -43,12 +43,22 @@ impl ClassicSimulationType {
 
 pub const SIM: &[ClassicSimulationType] = &[
     ClassicSimulationType::BasicSim,
-    ClassicSimulationType::BasicSimWithInit(BasicSimInit { theta: 0.0 }),
+    ClassicSimulationType::BasicSimWithInit(BasicSimInit {
+        theta: 0.0,
+        start_velocity_mul: 10.0,
+        mass: 10.0,
+    }),
     ClassicSimulationType::ProjectileMotionSim,
     ClassicSimulationType::ProjectileMotionSim2,
 ];
 
-pub type PlotObjectFnVec = Vec<Box<dyn Fn(SimulationState) -> Vec<PlotDrawItem> + Sync + Send>>;
+pub type PlotObjectFnVec = Vec<
+    Box<
+        dyn Fn(SimulationState, &mut Vec<ClassicSimulationObject>) -> Vec<PlotDrawItem>
+            + Sync
+            + Send,
+    >,
+>;
 
 pub struct ClassicSimulationPreset {
     pub simulation_objects: Vec<ClassicSimulationObject>,
@@ -68,14 +78,16 @@ fn basic_sim_init(data: BasicSimInit) -> ClassicSimulationPreset {
     // value have any item
     // let force = value.theta * 5.0;
     // force_list.push(force) // how to?
-    let force = data.theta.to_radians().sin_cos();
-    let force = Vector2::new(force.0, force.1) * 10.0;
+    let velocity = data.theta.to_radians().sin_cos();
+    let velocity = Vector2::new(velocity.0, velocity.1) * data.start_velocity_mul;
+
     let a = ClassicSimulationObject {
-        mass: 5.0,
-        shape: DrawShapeType::Box,
+        mass: data.mass,
+        shape: DrawShapeType::Circle,
         scale: None,
-        force_list: vec![Vector2::new(0.0, -9.8), Vector2::new(0.0, 0.0), force],
-        position: Vector2::new(1.0, 0.0),
+        force_list: vec![Vector2::new(0.0, -9.8)],
+        position: Vector2::new(0.0, 0.0),
+        momentum: velocity * data.mass,
         ..ClassicSimulationObject::default()
     };
 
@@ -130,11 +142,14 @@ fn projectile_motion_2_sim() -> ClassicSimulationPreset {
         })
         .collect::<Vec<_>>();
 
-    let graph = Box::new(|_state: SimulationState| {
-        vec![PlotDrawItem::Line(Line::new(
-            PlotPoints::from_explicit_callback(|x| x * x, 0.0..=50.0, 50),
-        ))]
-    });
+    let graph = Box::new(
+        |_state: SimulationState, item: &mut Vec<ClassicSimulationObject>| {
+            let obj = &mut item[0];
+            vec![PlotDrawItem::Line(Line::new(
+                PlotPoints::from_explicit_callback(|x| x * x, 0.0..=50.0, 50),
+            ))]
+        },
+    );
 
     ClassicSimulationPreset::new(sim, vec![graph])
 }

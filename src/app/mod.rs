@@ -3,6 +3,7 @@ use egui::{Slider, Widget};
 use nalgebra::Vector2;
 
 use crate::app::audio::player::MusicPlayer;
+use crate::app::graphics::image::ImageManager;
 use crate::app::manager::SimulationManager;
 use crate::app::simulations::state::update_simulation_state;
 use crate::app::simulations::template::SIM;
@@ -39,13 +40,14 @@ impl State {
         //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         // }
 
-        setup_custom_fonts(&_cc.egui_ctx);
+        new_with_context(&_cc.egui_ctx);
 
         Default::default()
     }
 }
 
-fn setup_custom_fonts(_ctx: &egui::Context) {
+fn new_with_context(ctx: &egui::Context) {
+    let i = ImageManager::new(ctx);
     // Start with the default fonts (we will be adding to them rather than replacing them).
     // let mut fonts = egui::FontDefinitions::default();
 
@@ -91,7 +93,9 @@ impl eframe::App for State {
         let cpu_usage = frame.info().cpu_usage;
 
         self.simulation_manager.step(current_time);
+
         self.frame_history.on_new_frame(current_time, cpu_usage);
+
         egui::SidePanel::left("Simulation Type").show(ctx, |ui| {
             ui.collapsing("CONTROL INFO (click)", |ui| {
                 ui.label("Mouse drag : move chart\nCtrl + Drag : zoom")
@@ -170,8 +174,6 @@ impl eframe::App for State {
             // }
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.label("Update : Shift + F5 / use Secret(Private) Browser");
-
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
                     ui.label("made by ");
@@ -190,6 +192,14 @@ impl eframe::App for State {
                     );
                     ui.label(".");
                 });
+
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    ui.hyperlink_to("code link", "https://github.com/python8965/physics");
+                    ui.label(".");
+                });
+
+                ui.label("Update : Shift + F5 / use Secret(Private) Browser");
             });
         });
 

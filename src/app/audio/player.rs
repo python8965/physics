@@ -101,7 +101,7 @@ impl MusicPlayer {
                 self.init();
             }
 
-            self.run("/audio/suzume.ogg");
+            self.run("audio/suzume.ogg");
         }
     }
 }

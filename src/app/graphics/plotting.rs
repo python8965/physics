@@ -81,6 +81,7 @@ impl SimulationPlot {
     ) {
         let simulation_objects = simulation.get_children();
         let response = inner_response.response;
+
         if let Some(pointer_pos) = inner_response.inner {
             if response.drag_started() {
                 for (index, obj) in simulation_objects.iter_mut().enumerate() {
@@ -103,12 +104,15 @@ impl SimulationPlot {
                         .push(vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y]);
                 }
             }
-        }
 
-        if !response.dragged() && self.dragging_object {
-            let selected = &mut simulation_objects[self.selected_index];
-            selected.force_list.remove(1);
-            self.dragging_object = false;
+            if !response.dragged() && self.dragging_object {
+                let selected = &mut simulation_objects[self.selected_index];
+                if selected.force_list.len() == 2 {
+                    selected.force_list.remove(1);
+                }
+
+                self.dragging_object = false;
+            }
         }
     }
 
@@ -173,7 +177,7 @@ impl SimulationPlot {
         }
 
         for func in &mut self.objects_fn {
-            for info in func(state) {
+            for info in func(state, simulation_objects) {
                 info.draw(plot_ui)
             }
         }
@@ -184,7 +188,12 @@ impl SimulationPlot {
 
         match obj.shape {
             DrawShapeType::Circle => PlotPoints::from_parametric_callback(
-                move |t| (t.sin() + obj.position.x, t.cos() + obj.position.y),
+                move |t| {
+                    (
+                        t.sin() * scale + obj.position.x,
+                        t.cos() * scale + obj.position.y,
+                    )
+                },
                 0.0..TAU,
                 512,
             ),
@@ -309,16 +318,16 @@ impl SimulationPlot {
         {
             let trace_line = &mut self.trace_lines[index];
 
-            if self.state.settings.trace {
-                draw_vec.push(PlotDrawItem::Line(trace_line.line()));
-            }
-
             let res = trace_line.update(obj.position, self.state);
 
             if !res.1.is_empty() && res.0 < self.near_value {
                 self.near_value = res.0;
                 self.nearest_label = res.1;
                 self.nearest_point = res.2;
+            }
+
+            if self.state.settings.trace {
+                draw_vec.push(PlotDrawItem::Line(trace_line.line()));
             }
         }
 
@@ -340,7 +349,7 @@ impl ObjectTraceLine {
         Self {
             data: vec![],
             last_pos: NVec2::new(0.0, 0.0),
-            last_time: 0.0,
+            last_time: -Self::MIN_TIME,
         }
     }
 

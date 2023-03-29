@@ -1,5 +1,5 @@
 use eframe::epaint::Color32;
-use egui::plot::{Arrows, Line, PlotUi, Polygon, Text};
+use egui::plot::{Arrows, Line, PlotImage, PlotUi, Polygon, Text};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -13,6 +13,7 @@ pub enum PlotDrawItem {
     Arrows(Arrows), // Arrows with debug text
     Text(Text),
     Line(Line),
+    Image(PlotImage),
 }
 
 unsafe impl Send for PlotDrawItem {}
@@ -34,7 +35,7 @@ impl PlotColor {
             PlotColor::VelocityVector => Color32::BLUE,
             PlotColor::ForceVector => Color32::RED,
             PlotColor::SigmaForceVector => Color32::DARK_RED,
-            PlotColor::TraceLine => Color32::DARK_GRAY,
+            PlotColor::TraceLine => Color32::GOLD,
         }
     }
 }
@@ -46,6 +47,7 @@ impl Debug for PlotDrawItem {
             PlotDrawItem::Arrows(_) => "Arrow",
             PlotDrawItem::Text(_) => "Text",
             PlotDrawItem::Line(_) => "Line",
+            PlotDrawItem::Image(_) => "Image"
         })
     }
 }
@@ -64,6 +66,9 @@ impl PlotDrawItem {
             }
             PlotDrawItem::Line(line) => {
                 plot_ui.line(line);
+            }
+            PlotDrawItem::Image(image) => {
+                plot_ui.image(image);
             }
         }
     }

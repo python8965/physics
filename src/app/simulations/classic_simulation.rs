@@ -41,7 +41,7 @@ fn physics_system(dt: Float, obj: &mut ClassicSimulationObject) {
         // 우리는 운동량 p를 원한다
         // Δp = ΣF * Δt
 
-        let delta_momentum = sigma_force * dt;
+        let delta_momentum = sigma_force * obj.mass * dt;
         obj.momentum += delta_momentum;
 
         // Δs = v * Δt
