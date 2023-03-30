@@ -24,6 +24,7 @@ pub type NVec2 = Vector2<Float>;
 pub struct State {
     simulation_manager: SimulationManager,
     music_player: MusicPlayer,
+    image_manager: ImageManager,
     frame_history: FrameHistory,
 }
 
@@ -39,15 +40,19 @@ impl State {
         // if let Some(storage) = cc.storage {
         //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         // }
+        let ctx = &_cc.egui_ctx;
 
-        new_with_context(&_cc.egui_ctx);
-
-        Default::default()
+        new_with_context(ctx);
+        let image_manager = ImageManager::new(ctx);
+        Self{
+            image_manager
+            , ..Default::default()
+        }
     }
 }
 
 fn new_with_context(ctx: &egui::Context) {
-    let i = ImageManager::new(ctx);
+
     // Start with the default fonts (we will be adding to them rather than replacing them).
     // let mut fonts = egui::FontDefinitions::default();
 
@@ -206,7 +211,7 @@ impl eframe::App for State {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
 
-            if let (Some(simulation), simulation_plot, state) =
+            if let (Some(simulation), simulation_plot, image_manager,state) =
                 self.simulation_manager.get_simulation()
             {
                 let legend = Legend::default();
@@ -224,7 +229,7 @@ impl eframe::App for State {
 
                 let response = plot.show(ui, |plot_ui| {
                     update_simulation_state(state, plot_ui);
-                    simulation_plot.draw(simulation, plot_ui, *state);
+                    simulation_plot.draw(simulation, plot_ui, &mut self.image_manager,*state);
                     plot_ui.pointer_coordinate()
                 });
 

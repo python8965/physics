@@ -12,6 +12,7 @@ use egui::epaint::util::FloatOrd;
 use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
 use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
+use crate::app::graphics::image::ImageManager;
 
 pub struct SimulationPlot {
     init: bool,
@@ -120,6 +121,7 @@ impl SimulationPlot {
         &mut self,
         simulation: &mut Box<dyn Simulation>,
         plot_ui: &mut PlotUi,
+        image_manager: &mut ImageManager,
         state: SimulationState,
     ) {
         self.nearest_label = String::new();
@@ -150,7 +152,7 @@ impl SimulationPlot {
                 Polygon::new(Self::get_object_points(obj)).color(PlotColor::Object.get_color()),
             )];
 
-            items.extend(self.get_info_shape(obj, index));
+            items.extend(self.get_info_shape(obj, image_manager,index));
 
             for info in items {
                 info.draw(plot_ui);
@@ -252,6 +254,7 @@ impl SimulationPlot {
     pub fn get_info_shape(
         &mut self,
         obj: &mut ClassicSimulationObject,
+        image_manager: &mut ImageManager,
         index: usize,
     ) -> Vec<PlotDrawItem> {
         let mut draw_vec = vec![];
@@ -313,6 +316,11 @@ impl SimulationPlot {
                 draw_vec.push(arrows);
                 draw_vec.push(text);
             }
+        }
+
+        if self.state.settings.equation{
+            let pos = obj.position;
+            let image = image_manager.get_plot_image(1, pos, 1.0);
         }
 
         {

@@ -17,6 +17,7 @@ pub struct SimulationState {
     pub(crate) settings: PlotSettings,
     pub(crate) pointer: Option<PlotPoint>,
     pub(crate) zoom: f64,
+
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -26,6 +27,7 @@ pub struct PlotSettings {
     pub(crate) velocity: bool,
     pub(crate) trace: bool,
     pub(crate) text: bool,
+    pub(crate) equation: bool,
 }
 
 impl Default for PlotSettings {

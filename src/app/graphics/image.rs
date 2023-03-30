@@ -2,8 +2,6 @@ use egui::epaint::ImageDelta;
 use egui::plot::{PlotImage, PlotPoint};
 use egui::{vec2, ColorImage, Context, TextureId, TextureOptions};
 
-static SIZE: Vec<usize> = vec![];
-
 pub struct ImageManager {
     texture: Vec<egui::TextureHandle>,
 }
@@ -19,14 +17,15 @@ impl ImageManager {
             .unwrap(); // Unwrap the DecodingResult
 
         let size = [img.width() as _, img.height() as _];
-        SIZE.push(size);
-        dbg!(&size);
+
         let img = img.to_rgba8();
         let pixels = img.as_flat_samples();
 
         let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
         let delta = ImageDelta::full(color_image, TextureOptions::default());
+
         ctx.tex_manager().write().set(TextureId::User(0), delta);
+
         let texture =
             ctx.load_texture("plot_demo", egui::ColorImage::example(), Default::default());
         Self {

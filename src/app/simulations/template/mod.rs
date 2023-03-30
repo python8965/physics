@@ -54,7 +54,7 @@ pub const SIM: &[ClassicSimulationType] = &[
 
 pub type PlotObjectFnVec = Vec<
     Box<
-        dyn Fn(SimulationState, &mut Vec<ClassicSimulationObject>) -> Vec<PlotDrawItem>
+        dyn Fn(SimulationState) -> Vec<PlotDrawItem>
             + Sync
             + Send,
     >,
@@ -143,8 +143,7 @@ fn projectile_motion_2_sim() -> ClassicSimulationPreset {
         .collect::<Vec<_>>();
 
     let graph = Box::new(
-        |_state: SimulationState, item: &mut Vec<ClassicSimulationObject>| {
-            let obj = &mut item[0];
+        |_state: SimulationStat| {
             vec![PlotDrawItem::Line(Line::new(
                 PlotPoints::from_explicit_callback(|x| x * x, 0.0..=50.0, 50),
             ))]
