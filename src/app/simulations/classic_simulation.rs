@@ -1,6 +1,6 @@
 use crate::app::simulations::object::ClassicSimulationObject;
-use crate::app::{Float, NVec2};
-use tracing::info;
+use crate::app::{Float};
+
 
 pub trait Simulation: Send + Sync {
     fn step(&mut self, dt: Float);

@@ -6,7 +6,7 @@ use crate::app::simulations::template::ClassicSimulationType;
 use crate::app::Float;
 use egui::Ui;
 use std::time::Instant;
-use tracing::info;
+
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,

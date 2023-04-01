@@ -1,5 +1,5 @@
 use egui::plot::{Legend, Plot};
-use egui::{ScrollArea, Slider, Widget, Window};
+use egui::{ScrollArea, Slider, Widget};
 use nalgebra::Vector2;
 
 use crate::app::audio::player::MusicPlayer;

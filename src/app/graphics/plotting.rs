@@ -2,7 +2,7 @@ use std::f64::consts::TAU;
 use std::fmt::Debug;
 
 use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem};
-use crate::app::graphics::image::ImageManager;
+
 use crate::app::simulations::classic_simulation::Simulation;
 use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::simulations::state::SimulationState;
