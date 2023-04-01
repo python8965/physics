@@ -1,5 +1,6 @@
 use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::{Float, NVec2};
+use tracing::info;
 
 pub trait Simulation: Send + Sync {
     fn step(&mut self, dt: Float);
@@ -31,23 +32,21 @@ impl Simulation for ClassicSimulation {
 }
 
 fn physics_system(dt: Float, obj: &mut ClassicSimulationObject) {
-    obj.position = {
-        let sigma_force: NVec2 = obj
-            .force_list
-            .iter()
-            .fold(NVec2::zeros(), |acc, x| acc + *x); // ΣF
-
-        // ΣF = Δp / Δt
-        // 우리는 운동량 p를 원한다
+    obj.state.position = {
+        // ΣF
+        // ΣF = ma
+        // a = ΣF / m
+        // Δv = a * Δt
         // Δp = ΣF * Δt
+        // Δs = v * Δt
+        let sigma_force = obj.state.sigma_force(); // a
 
-        let delta_momentum = sigma_force * obj.mass * dt;
-        obj.momentum += delta_momentum;
+        let delta_momentum = sigma_force * dt;
 
+        obj.state.momentum += delta_momentum;
         // Δs = v * Δt
 
-        let delta_position = obj.velocity() * dt;
-
-        obj.position + delta_position
+        let delta_position = obj.state.velocity() * dt;
+        obj.state.position + delta_position
     };
 }

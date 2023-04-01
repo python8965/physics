@@ -2,6 +2,7 @@ use std::f64::consts::TAU;
 use std::fmt::Debug;
 
 use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem};
+use crate::app::graphics::image::ImageManager;
 use crate::app::simulations::classic_simulation::Simulation;
 use crate::app::simulations::object::ClassicSimulationObject;
 use crate::app::simulations::state::SimulationState;
@@ -10,16 +11,15 @@ use crate::app::NVec2;
 use eframe::epaint::FontFamily;
 use egui::epaint::util::FloatOrd;
 use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
-use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
+use egui::{plot, Align2, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
-use crate::app::graphics::image::ImageManager;
 
 pub struct SimulationPlot {
     init: bool,
     pub objects_fn: PlotObjectFnVec,
     pub trace_lines: Vec<ObjectTraceLine>,
 
-    state: SimulationState,
+    sim_state: SimulationState,
 
     near_value: f64,
     nearest_label: String,
@@ -41,7 +41,7 @@ impl Default for SimulationPlot {
             trace_lines: vec![],
             dragging_object: false,
             selected_index: 0,
-            state: Default::default(),
+            sim_state: Default::default(),
         }
     }
 }
@@ -75,6 +75,7 @@ impl SimulationPlot {
         self.dragging_object
     }
 
+    // 입력을 받아서 상태를 업데이트한다.
     pub fn input(
         &mut self,
         simulation: &mut Box<dyn Simulation>,
@@ -95,12 +96,14 @@ impl SimulationPlot {
             }
 
             if response.dragged() && self.dragging_object {
-                let pos = simulation_objects[self.selected_index].position;
+                let pos = simulation_objects[self.selected_index].state.position;
                 let selected = &mut simulation_objects[self.selected_index];
-                if selected.force_list.len() == 2 {
-                    selected.force_list[1] = vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
+                if selected.state.force_list.len() == 2 {
+                    selected.state.force_list[1] =
+                        vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
                 } else {
                     selected
+                        .state
                         .force_list
                         .push(vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y]);
                 }
@@ -108,8 +111,8 @@ impl SimulationPlot {
 
             if !response.dragged() && self.dragging_object {
                 let selected = &mut simulation_objects[self.selected_index];
-                if selected.force_list.len() == 2 {
-                    selected.force_list.remove(1);
+                if selected.state.force_list.len() == 2 {
+                    selected.state.force_list.remove(1);
                 }
 
                 self.dragging_object = false;
@@ -117,17 +120,18 @@ impl SimulationPlot {
         }
     }
 
+    // 그래프를 그린다.
     pub fn draw(
         &mut self,
         simulation: &mut Box<dyn Simulation>,
         plot_ui: &mut PlotUi,
-        image_manager: &mut ImageManager,
         state: SimulationState,
     ) {
         self.nearest_label = String::new();
         self.near_value = 10.0;
-        self.state = state;
+        self.sim_state = state;
 
+        // 처음에는 그래프의 범위를 설정한다.
         if self.init {
             self.init = false;
 
@@ -136,9 +140,10 @@ impl SimulationPlot {
 
         let simulation_objects = simulation.get_children();
 
+        // 마우스를 이 오브젝트에 포커싱 중이면서 드래그할 때 선을 그려준다.
         if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
             if self.dragging_object {
-                let pos = simulation_objects[self.selected_index].position;
+                let pos = simulation_objects[self.selected_index].state.position;
                 PlotDrawItem::Line(Line::new(PlotPoints::new(vec![
                     [pos.x, pos.y],
                     [pointer_pos.x, pointer_pos.y],
@@ -147,18 +152,16 @@ impl SimulationPlot {
             }
         }
 
+        // 시뮬레이션 오브젝트마다 정보 모양을 제공한다.
         for (index, obj) in simulation_objects.iter_mut().enumerate() {
-            let mut items = vec![PlotDrawItem::Polygon(
+            plot_ui.polygon(
                 Polygon::new(Self::get_object_points(obj)).color(PlotColor::Object.get_color()),
-            )];
+            );
 
-            items.extend(self.get_info_shape(obj, image_manager,index));
-
-            for info in items {
-                info.draw(plot_ui);
-            }
+            self.draw_object(obj, plot_ui, index);
         }
 
+        // 가장 가까운 점의 정보를 표시한다.
         if !self.nearest_label.is_empty() {
             let text = Text::new(
                 {
@@ -179,21 +182,139 @@ impl SimulationPlot {
         }
 
         for func in &mut self.objects_fn {
-            for info in func(state, simulation_objects) {
+            for info in func(state) {
                 info.draw(plot_ui)
             }
         }
     }
 
+    // 오브젝트의 정보 모양을 반환한다.
+    pub fn draw_object(
+        &mut self,
+        obj: &mut ClassicSimulationObject,
+        plot_ui: &mut PlotUi,
+        index: usize,
+    ) {
+        if self.sim_state.settings.text {
+            let text = format!(
+                "Position : {:.3?}\nVelocity : {:.3?}\nForce(s) : {:.3?}\nMomentum : {:.3?}",
+                obj.state.position,
+                obj.state.velocity().norm(),
+                obj.state.force_list,
+                obj.state.momentum
+            );
+
+            plot_ui.text(Text::new(
+                PlotPoint::new(obj.state.position.x, obj.state.position.y),
+                SimulationPlot::get_sized_text(&self.sim_state, text, 1.0),
+            ));
+        }
+
+        if self.sim_state.settings.sigma_force {
+            let sigma_force = obj.state.sigma_force(); // Sum of force
+
+            let vector = (obj.state.position, obj.state.position + sigma_force);
+
+            let data = ("Sigma_Force", (vector.1 - vector.0));
+
+            let (text, arrows) =
+                self.get_info_vector((vector.0, vector.1), PlotColor::SigmaForceVector, data);
+
+            plot_ui.arrows(arrows);
+            plot_ui.text(text);
+        }
+
+        if self.sim_state.settings.velocity {
+            let vector = (
+                obj.state.position,
+                obj.state.position + obj.state.velocity(),
+            );
+
+            let data = ("Velocity", obj.state.velocity().norm());
+
+            let (text, arrows) =
+                self.get_info_vector((vector.0, vector.1), PlotColor::VelocityVector, data);
+            plot_ui.arrows(arrows);
+            plot_ui.text(text);
+        }
+
+        if self.sim_state.settings.force {
+            for force in &mut obj.state.force_list {
+                let vector = (obj.state.position, obj.state.position + *force);
+
+                let data = ("force", force);
+
+                let (text, arrows) =
+                    self.get_info_vector((vector.0, vector.1), PlotColor::ForceVector, data);
+
+                plot_ui.arrows(arrows);
+                plot_ui.text(text);
+            }
+        }
+
+        if self.sim_state.settings.equation {
+            let sim_time = self.sim_state.time;
+            let current_pos = obj.state.position;
+            let init_pos = obj.init_state().position;
+            let init_velocity = obj.init_state().velocity();
+            let acceleration = obj.state.acceleration();
+
+            let text = Self::get_sized_text(
+                &self.sim_state,
+                format!(
+                    "pos_{{final}} = pos_{{start}} +v_{{start}}*t + 1/2 * a_{{start}}*t^2\n\
+                         pos_{{final}} = {:.3?} + {:.3?}*{:.3?} + 1/2 * {:.3?}*{:.3?}^2\n\
+                         calculated pos_{{final}} = {:.3?} and in-simulation-pos = {:.3?}\n\
+                         ",
+                    init_pos,
+                    init_velocity,
+                    sim_time,
+                    acceleration,
+                    sim_time,
+                    init_pos + (init_velocity * sim_time) + (0.5 * acceleration * sim_time.powi(2)),
+                    current_pos,
+                ),
+                10.0,
+            )
+            .color(PlotColor::Equation.get_color());
+
+            let text = Text::new(
+                PlotPoint::new(current_pos.x, current_pos.y + (obj.state.scale() * 2.0)),
+                text,
+            )
+            .anchor(Align2::LEFT_BOTTOM)
+            .name("equation 2.16");
+
+            plot_ui.text(text);
+        }
+
+        {
+            let trace_line = &mut self.trace_lines[index];
+
+            let res = trace_line.update(obj.state.position, self.sim_state);
+
+            if !res.1.is_empty() && res.0 < self.near_value {
+                self.near_value = res.0;
+                self.nearest_label = res.1;
+                self.nearest_point = res.2;
+            }
+
+            if self.sim_state.settings.trace {
+                plot_ui.line(trace_line.line());
+            }
+        }
+    }
+
+    // 오브젝트 모양 점을 반환한다.
     fn get_object_points(obj: &ClassicSimulationObject) -> PlotPoints {
-        let scale = obj.get_scale();
+        let scale = obj.state.scale();
 
         match obj.shape {
             DrawShapeType::Circle => PlotPoints::from_parametric_callback(
                 move |t| {
                     (
-                        t.sin() * scale + obj.position.x,
-                        t.cos() * scale + obj.position.y,
+                        t.sin() * scale + obj.state.position.x,
+                        t.cos() * scale + obj.state.position.y,
                     )
                 },
                 0.0..TAU,
@@ -201,10 +322,10 @@ impl SimulationPlot {
             ),
 
             DrawShapeType::Box => vec![
-                [obj.position.x - scale, obj.position.y - scale],
-                [obj.position.x - scale, obj.position.y + scale],
-                [obj.position.x + scale, obj.position.y + scale],
-                [obj.position.x + scale, obj.position.y - scale],
+                [obj.state.position.x - scale, obj.state.position.y - scale],
+                [obj.state.position.x - scale, obj.state.position.y + scale],
+                [obj.state.position.x + scale, obj.state.position.y + scale],
+                [obj.state.position.x + scale, obj.state.position.y - scale],
             ]
             .into_iter()
             .map(|e| [e[0], e[1]])
@@ -213,12 +334,13 @@ impl SimulationPlot {
         }
     }
 
+    // 벡터의 화살표 모양을 반환한다.
     fn get_info_vector(
         &self,
         vector: (NVec2, NVec2),
         color: PlotColor,
         data: (impl ToString, impl Debug),
-    ) -> [PlotDrawItem; 2] {
+    ) -> (plot::Text, plot::Arrows) {
         let string = data.0.to_string();
         let value = data.1;
 
@@ -229,117 +351,29 @@ impl SimulationPlot {
 
         let text = Text::new(
             PlotPoint::from(((start + end) / 2.0).data.0[0]),
-            SimulationPlot::get_sized_text(&self.state, format!("{string} : {value:?}")),
+            SimulationPlot::get_sized_text(&self.sim_state, format!("{string} : {value:?}"), 1.0),
         )
         .color(color.get_color())
         .name(string.clone());
 
-        let arrows = PlotDrawItem::Arrows(arrows.color(color.get_color()).name(string));
+        let arrows = arrows.color(color.get_color()).name(string);
 
-        let text = PlotDrawItem::Text(text);
-
-        [text, arrows]
+        (text, arrows)
     }
 
-    fn get_sized_text(state: &SimulationState, text: String) -> RichText {
-        let font_size_raw = (((1.0 / state.zoom) * 100.0) + 5.0) as f32;
+    // 크기가 조정된 텍스트를 반환한다.
+    fn get_sized_text(state: &SimulationState, text: String, scale: f64) -> RichText {
+        let font_size_raw = (((1.0 / state.zoom) * 100.0) * scale) + 10.0;
+
+        let default_max = 64.0;
+
+        let default_min = 12.0;
 
         match font_size_raw {
-            _x if font_size_raw > 64.0 => RichText::new(""),
-            _x if font_size_raw < 8.0 => RichText::new(""),
-            x => RichText::new(text).size(x),
+            _x if font_size_raw > default_max => RichText::new(""),
+            _x if font_size_raw < default_min => RichText::new(""),
+            x => RichText::new(text).size(x as f32),
         }
-    }
-
-    pub fn get_info_shape(
-        &mut self,
-        obj: &mut ClassicSimulationObject,
-        image_manager: &mut ImageManager,
-        index: usize,
-    ) -> Vec<PlotDrawItem> {
-        let mut draw_vec = vec![];
-
-        if self.state.settings.text {
-            let text = format!(
-                "Position : {:.3?}\nVelocity : {:.3?}\nForce(s) : {:.3?}\nMomentum : {:.3?}",
-                obj.position,
-                obj.velocity().norm(),
-                obj.force_list,
-                obj.momentum
-            );
-
-            draw_vec.push(PlotDrawItem::Text(Text::new(
-                PlotPoint::new(obj.position.x, obj.position.y),
-                SimulationPlot::get_sized_text(&self.state, text),
-            )));
-        }
-
-        if self.state.settings.sigma_force {
-            let sigma_force = obj
-                .force_list
-                .iter()
-                .fold(NVec2::new(0.0, 0.0), |mut acc, force| {
-                    acc += NVec2::new(force.x, force.y);
-                    acc
-                }); // Sum of force
-
-            let vector = (obj.position, obj.position + sigma_force);
-
-            let data = ("Sigma_Force", (vector.1 - vector.0));
-
-            let [text, arrows] =
-                self.get_info_vector((vector.0, vector.1), PlotColor::SigmaForceVector, data);
-
-            draw_vec.push(arrows);
-            draw_vec.push(text);
-        }
-
-        if self.state.settings.velocity {
-            let vector = (obj.position, obj.position + obj.velocity());
-
-            let data = ("Velocity", obj.velocity().norm());
-
-            let [text, arrows] =
-                self.get_info_vector((vector.0, vector.1), PlotColor::VelocityVector, data);
-            draw_vec.push(arrows);
-            draw_vec.push(text);
-        }
-
-        if self.state.settings.force {
-            for force in &mut obj.force_list {
-                let vector = (obj.position, obj.position + *force);
-
-                let data = ("force", force);
-
-                let [text, arrows] =
-                    self.get_info_vector((vector.0, vector.1), PlotColor::ForceVector, data);
-                draw_vec.push(arrows);
-                draw_vec.push(text);
-            }
-        }
-
-        if self.state.settings.equation{
-            let pos = obj.position;
-            let image = image_manager.get_plot_image(1, pos, 1.0);
-        }
-
-        {
-            let trace_line = &mut self.trace_lines[index];
-
-            let res = trace_line.update(obj.position, self.state);
-
-            if !res.1.is_empty() && res.0 < self.near_value {
-                self.near_value = res.0;
-                self.nearest_label = res.1;
-                self.nearest_point = res.2;
-            }
-
-            if self.state.settings.trace {
-                draw_vec.push(PlotDrawItem::Line(trace_line.line()));
-            }
-        }
-
-        draw_vec
     }
 }
 

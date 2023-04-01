@@ -5,8 +5,8 @@ use crate::app::simulations::state::{PlotSettings, SimulationState};
 use crate::app::simulations::template::ClassicSimulationType;
 use crate::app::Float;
 use egui::Ui;
+use std::time::Instant;
 use tracing::info;
-use crate::app::graphics::image::ImageManager;
 
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
@@ -101,20 +101,22 @@ impl SimulationManager {
     pub fn step(&mut self, current_time: f64) {
         if !self.is_paused {
             let mut dt = current_time - self.last_time;
+            if dt > (1.0 / 60.0) {
+                dt *= self.sim_time_multiplier;
 
-            info!(dt);
+                let start = Instant::now();
 
-            dt *= self.sim_time_multiplier;
-
-            self.sim_state.time += dt;
-
-            self.last_time = current_time;
-
-            if let Some(simulation) = &mut self.simulation {
-                if !self.is_paused {
-                    self.sim_state.time += dt;
+                if let Some(simulation) = &mut self.simulation {
                     simulation.step(dt as Float);
                 }
+
+                let sim_time = start.elapsed().as_secs_f64();
+
+                dt += sim_time;
+
+                self.sim_state.time += dt;
+
+                self.last_time = current_time;
             }
         } else {
             if self.init_manager.is_initializing() {

@@ -3,8 +3,10 @@ use std::ops::Mul;
 use egui::plot::{Line, PlotPoints};
 use nalgebra::Vector2;
 
-use crate::app::graphics::define::{DrawShapeType, PlotDrawItem};
-use crate::app::simulations::object::ClassicSimulationObject;
+use crate::app::graphics::define::{PlotDrawItem};
+use crate::app::simulations::object::{
+    ClassicSimulationObject, ClassicSimulationObjectBuilder, ObjectState,
+};
 use crate::app::simulations::state::SimulationState;
 use crate::app::simulations::template::init::{BasicSimInit, SimInit};
 use crate::app::NVec2;
@@ -52,13 +54,7 @@ pub const SIM: &[ClassicSimulationType] = &[
     ClassicSimulationType::ProjectileMotionSim2,
 ];
 
-pub type PlotObjectFnVec = Vec<
-    Box<
-        dyn Fn(SimulationState) -> Vec<PlotDrawItem>
-            + Sync
-            + Send,
-    >,
->;
+pub type PlotObjectFnVec = Vec<Box<dyn Fn(SimulationState) -> Vec<PlotDrawItem> + Sync + Send>>;
 
 pub struct ClassicSimulationPreset {
     pub simulation_objects: Vec<ClassicSimulationObject>,
@@ -81,28 +77,25 @@ fn basic_sim_init(data: BasicSimInit) -> ClassicSimulationPreset {
     let velocity = data.theta.to_radians().sin_cos();
     let velocity = Vector2::new(velocity.0, velocity.1) * data.start_velocity_mul;
 
-    let a = ClassicSimulationObject {
-        mass: data.mass,
-        shape: DrawShapeType::Circle,
-        scale: None,
-        force_list: vec![Vector2::new(0.0, -9.8)],
-        position: Vector2::new(0.0, 0.0),
-        momentum: velocity * data.mass,
-        ..ClassicSimulationObject::default()
-    };
+    let a = ClassicSimulationObjectBuilder::new()
+        .state(ObjectState {
+            position: NVec2::new(1.0, 0.0),
+            momentum: velocity * data.mass,
+            mass: data.mass,
+            ..ObjectState::default()
+        })
+        .get();
 
     ClassicSimulationPreset::new(vec![a], vec![])
 }
 
 fn basic_sim() -> ClassicSimulationPreset {
-    let a = ClassicSimulationObject {
-        mass: 5.0,
-        shape: DrawShapeType::Box,
-        scale: None,
-        force_list: vec![Vector2::new(0.0, -9.8)],
-        position: Vector2::new(1.0, 0.0),
-        ..ClassicSimulationObject::default()
-    };
+    let a = ClassicSimulationObjectBuilder::new()
+        .state(ObjectState {
+            position: NVec2::new(1.0, 0.0),
+            ..ObjectState::default()
+        })
+        .get();
 
     ClassicSimulationPreset::new(vec![a], vec![])
 }
@@ -112,14 +105,16 @@ fn projectile_motion_sim() -> ClassicSimulationPreset {
 
     let sim = vec![2.0, 8.0, 20.0, 30.0, 40.0]
         .iter()
-        .map(|x| ClassicSimulationObject {
-            mass,
-            shape: DrawShapeType::Box,
-            scale: None,
-            momentum: NVec2::new(*x, 0.0).mul(mass),
-            force_list: vec![NVec2::new(0.0, -9.8)],
-            position: NVec2::new(1.0, 0.0),
-            ..ClassicSimulationObject::default()
+        .map(|x| {
+            ClassicSimulationObjectBuilder::new()
+                .state(ObjectState {
+                    momentum: NVec2::new(*x, *x).mul(mass),
+
+                    mass,
+                    position: NVec2::new(1.0, 0.0),
+                    ..ObjectState::default()
+                })
+                .get()
         })
         .collect::<Vec<_>>();
 
@@ -131,24 +126,24 @@ fn projectile_motion_2_sim() -> ClassicSimulationPreset {
 
     let sim = vec![2.0, 8.0, 20.0, 30.0, 40.0]
         .iter()
-        .map(|x| ClassicSimulationObject {
-            mass,
-            shape: DrawShapeType::Box,
-            scale: None,
-            momentum: NVec2::new(*x, *x).mul(mass),
-            force_list: vec![NVec2::new(0.0, -9.8)],
-            position: NVec2::new(1.0, 0.0),
-            ..ClassicSimulationObject::default()
+        .map(|x| {
+            ClassicSimulationObjectBuilder::new()
+                .state(ObjectState {
+                    momentum: NVec2::new(*x, *x).mul(mass),
+
+                    mass,
+                    position: NVec2::new(1.0, 0.0),
+                    ..ObjectState::default()
+                })
+                .get()
         })
         .collect::<Vec<_>>();
 
-    let graph = Box::new(
-        |_state: SimulationStat| {
-            vec![PlotDrawItem::Line(Line::new(
-                PlotPoints::from_explicit_callback(|x| x * x, 0.0..=50.0, 50),
-            ))]
-        },
-    );
+    let graph = Box::new(|_state: SimulationState| {
+        vec![PlotDrawItem::Line(Line::new(
+            PlotPoints::from_explicit_callback(|x| x * x, 0.0..=50.0, 50),
+        ))]
+    });
 
     ClassicSimulationPreset::new(sim, vec![graph])
 }

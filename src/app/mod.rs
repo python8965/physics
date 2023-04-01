@@ -1,5 +1,5 @@
 use egui::plot::{Legend, Plot};
-use egui::{Slider, Widget};
+use egui::{ScrollArea, Slider, Widget, Window};
 use nalgebra::Vector2;
 
 use crate::app::audio::player::MusicPlayer;
@@ -44,14 +44,14 @@ impl State {
 
         new_with_context(ctx);
         let image_manager = ImageManager::new(ctx);
-        Self{
-            image_manager
-            , ..Default::default()
+        Self {
+            image_manager,
+            ..Default::default()
         }
     }
 }
 
-fn new_with_context(ctx: &egui::Context) {
+fn new_with_context(_ctx: &egui::Context) {
 
     // Start with the default fonts (we will be adding to them rather than replacing them).
     // let mut fonts = egui::FontDefinitions::default();
@@ -101,83 +101,14 @@ impl eframe::App for State {
 
         self.frame_history.on_new_frame(current_time, cpu_usage);
 
+        let memo = "caucation !! in-simulation-pos is not exactly same with calculated pos_{{final}}\n\
+                          Because we can only get the simulation time discretely instead of continuously,\n\
+                          and there may be an error in floating point operations.\n\n\
+                          And you'll also see that the equation doesn't match if you give it your own strength.\n\
+                          This is because this formula is only valid in situations of equal acceleration(ΣF=ma).\n\
+                          ";
+
         egui::SidePanel::left("Simulation Type").show(ctx, |ui| {
-            ui.collapsing("CONTROL INFO (click)", |ui| {
-                ui.label("Mouse drag : move chart\nCtrl + Drag : zoom")
-            });
-
-            ui.separator();
-            ui.collapsing("Drawing Filter", |ui| {
-                ui.checkbox(&mut self.simulation_manager.settings_mut().text, "text");
-                ui.checkbox(&mut self.simulation_manager.settings_mut().force, "force");
-                ui.checkbox(
-                    &mut self.simulation_manager.settings_mut().velocity,
-                    "velocity",
-                );
-                ui.checkbox(
-                    &mut self.simulation_manager.settings_mut().sigma_force,
-                    "sigma_force",
-                );
-                ui.checkbox(&mut self.simulation_manager.settings_mut().trace, "trace");
-            });
-
-            ui.separator();
-
-            ui.label(format!("fps : {:.0?}", self.frame_history.fps()));
-
-            ui.label(format!(
-                "Elapsed Time (ΣΔt) = {:.2?}",
-                self.simulation_manager.get_time()
-            ));
-
-            ui.horizontal(|ui| {
-                ui.label("Time mul");
-                let _slider =
-                    Slider::new(self.simulation_manager.time_multiplier(), 0.5..=4.0).ui(ui);
-            });
-
-            ui.separator();
-
-            self.music_player.ui(ui);
-
-            ui.separator();
-
-            ui.horizontal(|ui| {
-                let paused = self.simulation_manager.get_pause();
-                let text = if paused { "Resume" } else { "Pause" };
-
-                if ui.selectable_label(paused, text).clicked() {
-                    self.simulation_manager.toggle_pause();
-                }
-            });
-
-            let _buttons = SIM
-                .iter()
-                .map(|sim_type| {
-                    let button = ui.button(sim_type.get_name());
-
-                    if button.clicked() {
-                        self.simulation_manager.new_simulation(*sim_type);
-                    }
-
-                    button
-                })
-                .collect::<Vec<_>>();
-
-            ui.separator();
-
-            self.simulation_manager.initialize_ui(ui);
-
-            // TODO: Source Code Demonstrate
-            // if ui.button("source code of current app").clicked() {
-            //     egui::Window::new("Source Code").show(ctx, |ui| {
-            //         ui.label(format!(
-            //             "{:?}",
-            //             self.simulation_manager.get_simulation_type()
-            //         ));
-            //     });
-            // }
-
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
@@ -198,20 +129,126 @@ impl eframe::App for State {
                     ui.label(".");
                 });
 
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.hyperlink_to("code link", "https://github.com/python8965/physics");
-                    ui.label(".");
-                });
+                ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                    ScrollArea::new([false, true]).show(ui, |ui| {
+                        ui.collapsing("Program Info", |ui| {
+                            ui.label(
+                                "Control Info\n\
+                                       .    drag      /      zoom    \n\
+                                       PC:  just drag / ctrl + scroll\n\
+                                       Mobile: touch  /  pinch\n\
+                                       ",
+                            );
 
-                ui.label("Update : Shift + F5 / use Secret(Private) Browser");
+                            ui.selectable_label(true, "Simulation Info")
+                                .on_hover_text(memo);
+
+                            ui.label(
+                                "Update Info : Input Shift + F5 (only desktop) \n\
+                                                         use Secret(Private) Browser",
+                            );
+
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = 0.0;
+                                ui.hyperlink_to(
+                                    "source code link (github)",
+                                    "https://github.com/python8965/physics",
+                                );
+                                ui.label(".");
+                            });
+                        });
+
+                        ui.separator();
+                        ui.collapsing("Drawing Filter", |ui| {
+                            ui.checkbox(&mut self.simulation_manager.settings_mut().text, "text");
+                            ui.checkbox(&mut self.simulation_manager.settings_mut().force, "force");
+                            ui.checkbox(
+                                &mut self.simulation_manager.settings_mut().velocity,
+                                "velocity",
+                            );
+                            ui.checkbox(
+                                &mut self.simulation_manager.settings_mut().sigma_force,
+                                "sigma_force",
+                            );
+                            ui.checkbox(&mut self.simulation_manager.settings_mut().trace, "trace");
+                            ui.checkbox(
+                                &mut self.simulation_manager.settings_mut().equation,
+                                "equation",
+                            );
+                        });
+
+                        ui.separator();
+
+                        ui.label(format!("fps : {:.0?}", self.frame_history.fps()));
+
+                        ui.label(format!(
+                            "Elapsed Time (ΣΔt) = {:.2?}",
+                            self.simulation_manager.get_time()
+                        ));
+
+                        ui.horizontal(|ui| {
+                            ui.label("Time mul");
+                            let _slider =
+                                Slider::new(self.simulation_manager.time_multiplier(), 0.5..=4.0)
+                                    .ui(ui);
+                        });
+
+                        ui.separator();
+
+                        self.music_player.ui(ui);
+
+                        ui.separator();
+
+                        ui.horizontal(|ui| {
+                            ctx.input(|i| {
+                                if i.key_pressed(egui::Key::Space) {
+                                    self.simulation_manager.toggle_pause();
+                                }
+                            });
+
+                            let paused = self.simulation_manager.get_pause();
+                            let text = if paused { "Resume" } else { "Pause" };
+
+                            if ui.selectable_label(paused, text).clicked() {
+                                self.simulation_manager.toggle_pause();
+                            }
+                        });
+
+                        let _buttons = SIM
+                            .iter()
+                            .map(|sim_type| {
+                                let button = ui.button(sim_type.get_name());
+
+                                if button.clicked() {
+                                    self.simulation_manager.new_simulation(*sim_type);
+                                }
+
+                                button
+                            })
+                            .collect::<Vec<_>>();
+
+                        ui.separator();
+
+                        self.simulation_manager.initialize_ui(ui);
+
+                        // TODO: Source Code Demonstrate
+                        // if ui.button("source code of current app").clicked() {
+                        //     egui::Window::new("Source Code").show(ctx, |ui| {
+                        //         ui.label(format!(
+                        //             "{:?}",
+                        //             self.simulation_manager.get_simulation_type()
+                        //         ));
+                        //     });
+                        // }
+                    });
+                });
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
 
-            if let (Some(simulation), simulation_plot, image_manager,state) =
+            if let (Some(simulation), simulation_plot, state) =
                 self.simulation_manager.get_simulation()
             {
                 let legend = Legend::default();
@@ -229,7 +266,7 @@ impl eframe::App for State {
 
                 let response = plot.show(ui, |plot_ui| {
                     update_simulation_state(state, plot_ui);
-                    simulation_plot.draw(simulation, plot_ui, &mut self.image_manager,*state);
+                    simulation_plot.draw(simulation, plot_ui, *state);
                     plot_ui.pointer_coordinate()
                 });
 

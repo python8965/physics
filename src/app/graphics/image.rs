@@ -1,7 +1,9 @@
-use egui::epaint::ImageDelta;
-use egui::plot::{PlotImage, PlotPoint};
-use egui::{vec2, ColorImage, Context, TextureId, TextureOptions};
+use crate::app::NVec2;
 
+use egui::plot::{PlotImage, PlotPoint};
+use egui::{vec2, ColorImage, Context, ImageData, TextureOptions};
+
+#[derive(Clone, Default)]
 pub struct ImageManager {
     texture: Vec<egui::TextureHandle>,
 }
@@ -22,21 +24,29 @@ impl ImageManager {
         let pixels = img.as_flat_samples();
 
         let color_image = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-        let delta = ImageDelta::full(color_image, TextureOptions::default());
+        let image_data = ImageData::from(color_image);
 
-        ctx.tex_manager().write().set(TextureId::User(0), delta);
+        ctx.tex_manager().write().alloc(
+            "plot_eq1".parse().unwrap(),
+            image_data,
+            TextureOptions::default(),
+        );
 
-        let texture =
-            ctx.load_texture("plot_demo", egui::ColorImage::example(), Default::default());
+        let texture = ctx.load_texture("plot_eq1", egui::ColorImage::example(), Default::default());
+
         Self {
             texture: vec![texture],
         }
     }
 
-    pub fn get_plot_image(&mut self, index: usize, pos: PlotPoint, size: f64) -> PlotImage {
+    pub fn get_plot_image(&mut self, index: usize, pos: NVec2, size: f64) -> PlotImage {
         let tex = &mut self.texture[index];
 
-        let image = PlotImage::new(tex.id(), pos, (size as f32) * vec2(tex.aspect_ratio(), 1.0));
+        let image = PlotImage::new(
+            tex.id(),
+            PlotPoint::from([pos.x, pos.y]),
+            (size as f32) * vec2(tex.aspect_ratio(), 1.0),
+        );
 
         image
     }

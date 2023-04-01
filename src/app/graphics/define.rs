@@ -26,6 +26,7 @@ pub enum PlotColor {
     ForceVector,
     SigmaForceVector,
     TraceLine,
+    Equation,
 }
 
 impl PlotColor {
@@ -36,6 +37,7 @@ impl PlotColor {
             PlotColor::ForceVector => Color32::RED,
             PlotColor::SigmaForceVector => Color32::DARK_RED,
             PlotColor::TraceLine => Color32::GOLD,
+            PlotColor::Equation => Color32::WHITE,
         }
     }
 }
@@ -47,7 +49,7 @@ impl Debug for PlotDrawItem {
             PlotDrawItem::Arrows(_) => "Arrow",
             PlotDrawItem::Text(_) => "Text",
             PlotDrawItem::Line(_) => "Line",
-            PlotDrawItem::Image(_) => "Image"
+            PlotDrawItem::Image(_) => "Image",
         })
     }
 }
