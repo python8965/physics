@@ -3,7 +3,6 @@ use std::ops::Mul;
 use egui::plot::{Line, PlotPoints};
 use nalgebra::Vector2;
 
-
 use crate::app::graphics::define::PlotDrawItem;
 use crate::app::graphics::CSPlotObjects;
 use crate::app::simulations::classic_simulation::object::CSObjectState;
@@ -91,7 +90,7 @@ fn basic_sim_init(data: BasicSimInit) -> CSPreset {
         if (0.0..=0.1).contains(&state.velocity().norm()) {
             Some(
                 CSObjectStampResult::default()
-                    .label("WHEN velocity < 0.0")
+                    .label("WHEN |velocity| < 0.1")
                     .state(state.clone())
                     .time(time),
             )

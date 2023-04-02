@@ -160,7 +160,10 @@ impl eframe::App for State {
                         ui.separator();
                         ui.collapsing("Drawing Filter", |ui| {
                             ui.checkbox(&mut self.simulation_manager.settings_mut().text, "text");
-                            ui.checkbox(&mut self.simulation_manager.settings_mut().force, "force");
+                            ui.checkbox(
+                                &mut self.simulation_manager.settings_mut().acceleration,
+                                "acceleration",
+                            );
                             ui.checkbox(
                                 &mut self.simulation_manager.settings_mut().velocity,
                                 "velocity",

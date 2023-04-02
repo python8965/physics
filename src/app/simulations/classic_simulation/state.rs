@@ -27,7 +27,7 @@ impl CSimState {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PlotViewFilter {
-    pub(crate) force: bool,
+    pub(crate) acceleration: bool,
     pub(crate) sigma_force: bool,
     pub(crate) velocity: bool,
     pub(crate) trace: bool,
@@ -39,7 +39,7 @@ pub struct PlotViewFilter {
 impl Default for PlotViewFilter {
     fn default() -> Self {
         Self {
-            force: false,
+            acceleration: false,
             sigma_force: true,
             velocity: true,
             trace: true,

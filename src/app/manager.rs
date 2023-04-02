@@ -2,7 +2,7 @@ use crate::app::graphics::plot::CSPlot;
 use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation};
 use crate::app::Float;
 use egui::Ui;
-use std::time::Instant;
+use instant::Instant;
 use tracing::info;
 
 mod init_manager;

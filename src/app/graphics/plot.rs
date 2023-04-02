@@ -6,7 +6,6 @@ use nalgebra::vector;
 use std::f64::consts::TAU;
 use std::fmt::Debug;
 
-
 use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem, PlotTextSize};
 use crate::app::graphics::CSPlotObjects;
 use crate::app::simulations::classic_simulation::object::CSObjectState;
@@ -274,11 +273,11 @@ impl CSPlot {
             plot_ui.text(text);
         }
 
-        if self.sim_state.settings.force {
-            for force in &mut obj.state.velocity_list {
-                let vector = (obj.state.position, obj.state.position + *force);
+        if self.sim_state.settings.acceleration {
+            for acceleration in &mut obj.state.velocity_list {
+                let vector = (obj.state.position, obj.state.position + *acceleration);
 
-                let data = ("force", force);
+                let data = ("acceleration", acceleration);
 
                 let (text, arrows) =
                     self.get_info_vector((vector.0, vector.1), PlotColor::ForceVector, data);
