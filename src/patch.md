@@ -35,3 +35,8 @@ PATCH++ when BUGFIXES/MINOR CHANGE
 - show fps
 - now we can show inited simulation / base_init_sim
 - dep log to tracing
+
+0.4.0
+- add simulation stamp (conditional simulation object marking)
+- simulation main logic fixed (now Vec<Force> is changed by Vec<Velocity>)
+- various bug fixes
