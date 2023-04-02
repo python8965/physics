@@ -1,25 +1,27 @@
-use std::f64::consts::TAU;
-use std::fmt::Debug;
-
-use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem};
-
-use crate::app::simulations::classic_simulation::Simulation;
-use crate::app::simulations::object::ClassicSimulationObject;
-use crate::app::simulations::state::SimulationState;
-use crate::app::simulations::template::PlotObjectFnVec;
-use crate::app::NVec2;
 use eframe::epaint::FontFamily;
 use egui::epaint::util::FloatOrd;
-use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Polygon, Text};
+use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Points, Polygon, Text};
 use egui::{plot, Align2, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
+use std::f64::consts::TAU;
+use std::fmt::Debug;
+use tracing::info;
 
-pub struct SimulationPlot {
+use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem, PlotTextSize};
+use crate::app::graphics::CSPlotObjects;
+use crate::app::simulations::classic_simulation::object::CSObjectState;
+use crate::app::simulations::classic_simulation::state::CSimState;
+use crate::app::simulations::classic_simulation::{CSObject, Simulation};
+use crate::app::NVec2;
+
+pub mod object;
+
+pub struct CSPlot {
     init: bool,
-    pub objects_fn: PlotObjectFnVec,
-    pub trace_lines: Vec<ObjectTraceLine>,
 
-    sim_state: SimulationState,
+    pub plot_objects: CSPlotObjects,
+
+    sim_state: CSimState,
 
     near_value: f64,
     nearest_label: String,
@@ -29,16 +31,16 @@ pub struct SimulationPlot {
     selected_index: usize,
 }
 
-impl Default for SimulationPlot {
+impl Default for CSPlot {
     fn default() -> Self {
         Self {
             init: true,
-            objects_fn: vec![],
-            near_value: 10.0,
+            plot_objects: CSPlotObjects::default(),
 
+            near_value: ObjectTraceLine::MAX_DISTANCE,
             nearest_label: "".to_string(),
             nearest_point: PlotPoint { x: 0.0, y: 0.0 },
-            trace_lines: vec![],
+
             dragging_object: false,
             selected_index: 0,
             sim_state: Default::default(),
@@ -60,13 +62,10 @@ fn is_inside(pos: PlotPoint, plotpoint: &[PlotPoint]) -> bool {
     contact % 2 > 0
 }
 
-impl SimulationPlot {
-    pub fn new(objects_count: usize, objects_fn: PlotObjectFnVec) -> Self {
+impl CSPlot {
+    pub fn new(plot_objects: CSPlotObjects) -> Self {
         Self {
-            objects_fn,
-            trace_lines: (0..objects_count)
-                .map(|_| ObjectTraceLine::new())
-                .collect::<Vec<_>>(),
+            plot_objects,
             ..Self::default()
         }
     }
@@ -98,21 +97,21 @@ impl SimulationPlot {
             if response.dragged() && self.dragging_object {
                 let pos = simulation_objects[self.selected_index].state.position;
                 let selected = &mut simulation_objects[self.selected_index];
-                if selected.state.force_list.len() == 2 {
-                    selected.state.force_list[1] =
+                if selected.state.velocity_list.len() == 2 {
+                    selected.state.velocity_list[1] =
                         vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
                 } else {
                     selected
                         .state
-                        .force_list
+                        .velocity_list
                         .push(vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y]);
                 }
             }
 
             if !response.dragged() && self.dragging_object {
                 let selected = &mut simulation_objects[self.selected_index];
-                if selected.state.force_list.len() == 2 {
-                    selected.state.force_list.remove(1);
+                if selected.state.velocity_list.len() == 2 {
+                    selected.state.velocity_list.remove(1);
                 }
 
                 self.dragging_object = false;
@@ -125,10 +124,10 @@ impl SimulationPlot {
         &mut self,
         simulation: &mut Box<dyn Simulation>,
         plot_ui: &mut PlotUi,
-        state: SimulationState,
+        state: CSimState,
     ) {
         self.nearest_label = String::new();
-        self.near_value = 10.0;
+        self.near_value = ObjectTraceLine::MAX_DISTANCE;
         self.sim_state = state;
 
         // 처음에는 그래프의 범위를 설정한다.
@@ -144,10 +143,10 @@ impl SimulationPlot {
         if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
             if self.dragging_object {
                 let pos = simulation_objects[self.selected_index].state.position;
-                PlotDrawItem::Line(Line::new(PlotPoints::new(vec![
+                PlotDrawItem::Line(Line::new(vec![
                     [pos.x, pos.y],
                     [pointer_pos.x, pointer_pos.y],
-                ])))
+                ]))
                 .draw(plot_ui);
             }
         }
@@ -181,33 +180,70 @@ impl SimulationPlot {
             text.draw(plot_ui);
         }
 
-        for func in &mut self.objects_fn {
-            for info in func(state) {
-                info.draw(plot_ui)
-            }
+        for func in self.plot_objects.get_plot_items() {
+            func.draw(plot_ui)
         }
     }
 
     // 오브젝트의 정보 모양을 반환한다.
-    pub fn draw_object(
-        &mut self,
-        obj: &mut ClassicSimulationObject,
-        plot_ui: &mut PlotUi,
-        index: usize,
-    ) {
-        if self.sim_state.settings.text {
-            let text = format!(
+    pub fn draw_object(&mut self, obj: &mut CSObject, plot_ui: &mut PlotUi, index: usize) {
+        let get_state_text_raw = |state: &CSObjectState| {
+            format!(
                 "Position : {:.3?}\nVelocity : {:.3?}\nForce(s) : {:.3?}\nMomentum : {:.3?}",
-                obj.state.position,
-                obj.state.velocity().norm(),
-                obj.state.force_list,
-                obj.state.momentum
-            );
+                state.position,
+                state.velocity().norm(),
+                state.velocity_list,
+                state.momentum
+            )
+        };
 
-            plot_ui.text(Text::new(
-                PlotPoint::new(obj.state.position.x, obj.state.position.y),
-                SimulationPlot::get_sized_text(&self.sim_state, text, 1.0),
-            ));
+        let get_obj_state_text = |state: &CSObjectState| {
+            let text = get_state_text_raw(state);
+
+            Text::new(
+                PlotPoint::new(state.position.x, state.position.y),
+                CSPlot::get_sized_text(&self.sim_state, text, PlotTextSize::Small.get_size()),
+            )
+        };
+
+        if self.sim_state.settings.stamp && self.sim_state.is_sim_started() {
+            for stamp in self.plot_objects.get_stamps() {
+                if let Some(stamp_result) = stamp.get_data(&obj.state, index, self.sim_state.time) {
+                    let text = format!(
+                        "<Stamp>\nLabel:{:?}\n{:}\nOn State Time {:.3?}",
+                        stamp_result.label,
+                        get_state_text_raw(&stamp_result.state),
+                        stamp_result.time
+                    );
+
+                    let text = Text::new(
+                        PlotPoint::new(
+                            stamp_result.state.position.x,
+                            stamp_result.state.position.y,
+                        ),
+                        CSPlot::get_sized_text(
+                            &self.sim_state,
+                            text,
+                            PlotTextSize::Medium.get_size(),
+                        ),
+                    )
+                    .anchor(Align2::LEFT_TOP)
+                    .name(stamp_result.name.clone())
+                    .color(PlotColor::StampText.get_color());
+
+                    plot_ui.text(text);
+
+                    plot_ui.points(
+                        Points::new([stamp_result.state.position.x, stamp_result.state.position.y])
+                            .radius(2.0)
+                            .color(PlotColor::Stamp.get_color()),
+                    );
+                }
+            }
+        }
+
+        if self.sim_state.settings.text {
+            plot_ui.text(get_obj_state_text(&obj.state));
         }
 
         if self.sim_state.settings.sigma_force {
@@ -239,7 +275,7 @@ impl SimulationPlot {
         }
 
         if self.sim_state.settings.force {
-            for force in &mut obj.state.force_list {
+            for force in &mut obj.state.velocity_list {
                 let vector = (obj.state.position, obj.state.position + *force);
 
                 let data = ("force", force);
@@ -289,9 +325,9 @@ impl SimulationPlot {
         }
 
         {
-            let trace_line = &mut self.trace_lines[index];
+            let trace_line = &mut obj.trace_line;
 
-            let res = trace_line.update(obj.state.position, self.sim_state);
+            let res = trace_line.update(plot_ui, obj.state.position, self.sim_state);
 
             if !res.1.is_empty() && res.0 < self.near_value {
                 self.near_value = res.0;
@@ -306,7 +342,7 @@ impl SimulationPlot {
     }
 
     // 오브젝트 모양 점을 반환한다.
-    fn get_object_points(obj: &ClassicSimulationObject) -> PlotPoints {
+    fn get_object_points(obj: &CSObject) -> PlotPoints {
         let scale = obj.state.scale();
 
         match obj.shape {
@@ -351,7 +387,7 @@ impl SimulationPlot {
 
         let text = Text::new(
             PlotPoint::from(((start + end) / 2.0).data.0[0]),
-            SimulationPlot::get_sized_text(&self.sim_state, format!("{string} : {value:?}"), 1.0),
+            CSPlot::get_sized_text(&self.sim_state, format!("{string} : {value:?}"), 1.0),
         )
         .color(color.get_color())
         .name(string.clone());
@@ -362,12 +398,12 @@ impl SimulationPlot {
     }
 
     // 크기가 조정된 텍스트를 반환한다.
-    fn get_sized_text(state: &SimulationState, text: String, scale: f64) -> RichText {
-        let font_size_raw = (((1.0 / state.zoom) * 100.0) * scale) + 10.0;
+    fn get_sized_text(state: &CSimState, text: String, scale: f64) -> RichText {
+        let font_size_raw = ((((1.0 / state.zoom) * 1000.0) * scale) + 10.0) / 5.0;
 
         let default_max = 64.0;
 
-        let default_min = 12.0;
+        let default_min = 5.0;
 
         match font_size_raw {
             _x if font_size_raw > default_max => RichText::new(""),
@@ -386,6 +422,7 @@ pub struct ObjectTraceLine {
 
 impl ObjectTraceLine {
     const MIN_TIME: f64 = 0.25;
+    const MAX_DISTANCE: f64 = 225.0;
 
     pub(crate) fn new() -> Self {
         Self {
@@ -395,7 +432,12 @@ impl ObjectTraceLine {
         }
     }
 
-    fn update(&mut self, pos: NVec2, state: SimulationState) -> (f64, String, PlotPoint) {
+    fn update(
+        &mut self,
+        plot_ui: &mut PlotUi,
+        pos: NVec2,
+        state: CSimState,
+    ) -> (f64, String, PlotPoint) {
         let time = state.time;
 
         if (time - self.last_time) > Self::MIN_TIME {
@@ -405,17 +447,22 @@ impl ObjectTraceLine {
         }
 
         if let Some(pointer) = state.pointer {
+            let pointer = plot_ui.screen_from_plot(pointer);
+
             let closest = self
                 .data
                 .iter()
                 .enumerate()
-                .map(|(index, pos)| {
-                    (
-                        index,
-                        pointer
-                            .to_pos2()
-                            .distance_sq(Pos2::new(pos[0] as f32, pos[1] as f32)),
-                    )
+                .filter_map(|(index, pos)| {
+                    let pos = plot_ui.screen_from_plot(PlotPoint::new(pos[0], pos[1]));
+
+                    let dist = pointer.distance_sq(pos);
+
+                    if dist < Self::MAX_DISTANCE as f32 {
+                        Some((index, dist))
+                    } else {
+                        None
+                    }
                 })
                 .min_by_key(|e| e.1.ord());
 

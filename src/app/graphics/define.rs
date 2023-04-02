@@ -1,24 +1,12 @@
-use eframe::epaint::Color32;
-use egui::plot::{Arrows, Line, PlotImage, PlotUi, Polygon, Text};
 use std::fmt::{Debug, Formatter};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum DrawShapeType {
-    Circle,
-    Box,
-}
+use eframe::epaint::Color32;
+use egui::plot::{
+    Arrows, Line, LineStyle, PlotImage, PlotPoint, PlotPoints, PlotUi, Polygon, Text,
+};
+use egui::Stroke;
 
-pub enum PlotDrawItem {
-    Polygon(Polygon),
-    Arrows(Arrows), // Arrows with debug text
-    Text(Text),
-    Line(Line),
-    Image(PlotImage),
-}
-
-unsafe impl Send for PlotDrawItem {}
-
-unsafe impl Sync for PlotDrawItem {}
+pub mod items;
 
 pub enum PlotColor {
     Object,
@@ -27,6 +15,8 @@ pub enum PlotColor {
     SigmaForceVector,
     TraceLine,
     Equation,
+    Stamp,
+    StampText,
 }
 
 impl PlotColor {
@@ -38,9 +28,47 @@ impl PlotColor {
             PlotColor::SigmaForceVector => Color32::DARK_RED,
             PlotColor::TraceLine => Color32::GOLD,
             PlotColor::Equation => Color32::WHITE,
+            PlotColor::Stamp => Color32::YELLOW,
+            PlotColor::StampText => Color32::GREEN,
         }
     }
 }
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum DrawShapeType {
+    Circle,
+    Box,
+}
+
+pub enum PlotTextSize {
+    Small,
+    Medium,
+    Large,
+    Equation,
+}
+
+impl PlotTextSize {
+    pub fn get_size(&self) -> f64 {
+        match self {
+            PlotTextSize::Small => 1.0,
+            PlotTextSize::Medium => 2.0,
+            PlotTextSize::Large => 5.0,
+            PlotTextSize::Equation => 10.0,
+        }
+    }
+}
+
+pub enum PlotDrawItem {
+    Polygon(Polygon),
+    Arrows(Arrows), // Arrows with debug text
+    Line(Line),
+    Text(Text),
+    Image(PlotImage),
+}
+
+unsafe impl Send for PlotDrawItem {}
+
+unsafe impl Sync for PlotDrawItem {}
 
 impl Debug for PlotDrawItem {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

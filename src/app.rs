@@ -5,13 +5,12 @@ use nalgebra::Vector2;
 use crate::app::audio::player::MusicPlayer;
 use crate::app::graphics::image::ImageManager;
 use crate::app::manager::SimulationManager;
-use crate::app::simulations::state::update_simulation_state;
-use crate::app::simulations::template::SIM;
+use crate::app::simulations::classic_simulation::state::update_simulation_state;
+use crate::app::simulations::classic_simulation::template::SIM;
 use crate::app::util::FrameHistory;
 
 mod audio;
 mod graphics;
-mod init_manager;
 mod io;
 mod manager;
 mod simulations;
@@ -97,7 +96,7 @@ impl eframe::App for State {
         let current_time = ctx.input(|i| i.time);
         let cpu_usage = frame.info().cpu_usage;
 
-        self.simulation_manager.step(current_time);
+        self.simulation_manager.step();
 
         self.frame_history.on_new_frame(current_time, cpu_usage);
 
@@ -175,6 +174,7 @@ impl eframe::App for State {
                                 &mut self.simulation_manager.settings_mut().equation,
                                 "equation",
                             );
+                            ui.checkbox(&mut self.simulation_manager.settings_mut().stamp, "stamp");
                         });
 
                         ui.separator();
@@ -192,10 +192,6 @@ impl eframe::App for State {
                                 Slider::new(self.simulation_manager.time_multiplier(), 0.5..=4.0)
                                     .ui(ui);
                         });
-
-                        ui.separator();
-
-                        self.music_player.ui(ui);
 
                         ui.separator();
 
@@ -226,6 +222,12 @@ impl eframe::App for State {
                                 button
                             })
                             .collect::<Vec<_>>();
+
+                        ui.separator();
+
+                        ui.collapsing("Laboratory", |ui| {
+                            self.music_player.ui(ui);
+                        });
 
                         ui.separator();
 

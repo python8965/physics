@@ -1,11 +1,11 @@
-use crate::app::simulations::template::ClassicSimulationType;
+use crate::app::simulations::classic_simulation::template::CSTemplate;
 use egui::{Slider, Ui, Widget};
 use std::fmt::Debug;
 
-pub trait SimInit: Debug {
+pub trait SimulationInit: Debug {
     fn ui(&mut self, ui: &mut Ui);
 
-    fn to_simulation_type(&self) -> ClassicSimulationType;
+    fn to_simulation_type(&self) -> CSTemplate;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -15,7 +15,7 @@ pub struct BasicSimInit {
     pub mass: f64,
 }
 
-impl SimInit for BasicSimInit {
+impl SimulationInit for BasicSimInit {
     fn ui(&mut self, ui: &mut Ui) {
         Slider::new(&mut self.theta, 0.0..=90.0)
             .text("Theta Degree")
@@ -28,7 +28,7 @@ impl SimInit for BasicSimInit {
         Slider::new(&mut self.mass, 1.0..=100.0).text("Mass").ui(ui);
     }
 
-    fn to_simulation_type(&self) -> ClassicSimulationType {
-        ClassicSimulationType::BasicSimWithInit(*self)
+    fn to_simulation_type(&self) -> CSTemplate {
+        CSTemplate::BasicSimWithInit(*self)
     }
 }

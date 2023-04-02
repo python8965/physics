@@ -1,7 +1,6 @@
-use crate::app::simulations::object::ClassicSimulationObject;
-use crate::app::simulations::template::init::SimInit;
-use crate::app::simulations::template::{
-    ClassicSimulationPreset, ClassicSimulationType, PlotObjectFnVec,
+use crate::app::simulations::classic_simulation::template::init::SimulationInit;
+use crate::app::simulations::classic_simulation::template::{
+    CSPreset, CSTemplate,
 };
 use egui::Ui;
 
@@ -9,22 +8,23 @@ use egui::Ui;
 pub struct SimulationInitManager {
     is_sim_initializing: bool,
     is_sim_ready: bool,
-    initializing_data: Option<Box<dyn SimInit>>,
+
+    initializing_data: Option<Box<dyn SimulationInit>>,
 }
 
 impl SimulationInitManager {
     pub fn get_new_simulation_data(
         &mut self,
-        simulation_type: ClassicSimulationType,
-    ) -> (Vec<ClassicSimulationObject>, PlotObjectFnVec) {
+        simulation_type: CSTemplate,
+    ) -> CSPreset {
         self.is_sim_initializing = false;
         self.is_sim_ready = false;
 
         self.initializing_data = simulation_type.get_data();
 
-        let ClassicSimulationPreset {
+        let CSPreset {
             simulation_objects,
-            objects_fn,
+            plot_objects,
         } = simulation_type.get_preset_with_ui();
 
         if self.initializing_data.is_some() {
@@ -36,15 +36,16 @@ impl SimulationInitManager {
             self.is_sim_ready = true;
         }
 
-        (simulation_objects, objects_fn)
+        CSPreset {
+            simulation_objects,
+            plot_objects,
+        }
     }
 
-    pub fn get_update_simulation_data(
-        &mut self,
-    ) -> (Vec<ClassicSimulationObject>, PlotObjectFnVec) {
-        let ClassicSimulationPreset {
+    pub fn get_update_simulation_data(&mut self) -> CSPreset {
+        let CSPreset {
             simulation_objects,
-            objects_fn,
+            plot_objects,
         } = self
             .initializing_data
             .as_ref()
@@ -52,7 +53,10 @@ impl SimulationInitManager {
             .to_simulation_type()
             .get_preset_with_ui();
 
-        (simulation_objects, objects_fn)
+        CSPreset {
+            simulation_objects,
+            plot_objects,
+        }
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
