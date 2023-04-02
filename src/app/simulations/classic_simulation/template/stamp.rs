@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::ops::RangeInclusive;
 
-use crate::app::graphics::define::PlotDrawItem;
+
 use crate::app::simulations::classic_simulation::object::CSObjectState;
 
 #[derive(Clone, Debug)]

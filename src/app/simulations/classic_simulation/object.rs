@@ -1,5 +1,5 @@
 use crate::app::graphics::define::DrawShapeType;
-use crate::app::graphics::plot;
+
 use crate::app::graphics::plot::ObjectTraceLine;
 use crate::app::NVec2;
 use std::ops::Div;

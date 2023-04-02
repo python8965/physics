@@ -5,7 +5,7 @@ use egui::{plot, Align2, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
 use std::f64::consts::TAU;
 use std::fmt::Debug;
-use tracing::info;
+
 
 use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem, PlotTextSize};
 use crate::app::graphics::CSPlotObjects;

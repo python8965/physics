@@ -2,7 +2,7 @@ use std::ops::Mul;
 
 use egui::plot::{Line, PlotPoints};
 use nalgebra::Vector2;
-use tracing::info;
+
 
 use crate::app::graphics::define::PlotDrawItem;
 use crate::app::graphics::CSPlotObjects;

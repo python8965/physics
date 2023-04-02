@@ -2,9 +2,9 @@ use std::fmt::{Debug, Formatter};
 
 use eframe::epaint::Color32;
 use egui::plot::{
-    Arrows, Line, LineStyle, PlotImage, PlotPoint, PlotPoints, PlotUi, Polygon, Text,
+    Arrows, Line, PlotImage, PlotUi, Polygon, Text,
 };
-use egui::Stroke;
+
 
 pub mod items;
 
