@@ -96,8 +96,6 @@ impl eframe::App for State {
         let current_time = ctx.input(|i| i.time);
         let cpu_usage = frame.info().cpu_usage;
 
-        self.simulation_manager.step();
-
         self.frame_history.on_new_frame(current_time, cpu_usage);
 
         let memo = "caucation !! in-simulation-pos is not exactly same with calculated pos_{{final}}\n\
@@ -106,6 +104,18 @@ impl eframe::App for State {
                           And you'll also see that the equation doesn't match if you give it your own strength.\n\
                           This is because this formula is only valid in situations of equal acceleration(ΣF=ma).\n\
                           ";
+
+        if self.simulation_manager.is_initializing() {
+            egui::SidePanel::right("Control Panel").show(ctx, |ui| {
+                ScrollArea::new([false, true]).show(ui, |ui| {
+                    ui.heading("Initializing Simulation...");
+                    ui.label("Click resume to start the simulation.");
+                    ui.separator();
+
+                    self.simulation_manager.initialize_ui(ui);
+                });
+            });
+        }
 
         egui::SidePanel::left("Simulation Type").show(ctx, |ui| {
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -234,8 +244,6 @@ impl eframe::App for State {
 
                         ui.separator();
 
-                        self.simulation_manager.initialize_ui(ui);
-
                         // TODO: Source Code Demonstrate
                         // if ui.button("source code of current app").clicked() {
                         //     egui::Window::new("Source Code").show(ctx, |ui| {
@@ -282,5 +290,7 @@ impl eframe::App for State {
         });
 
         ctx.request_repaint();
+
+        self.simulation_manager.step();
     }
 }

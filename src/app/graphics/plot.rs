@@ -386,7 +386,11 @@ impl CSPlot {
 
         let text = Text::new(
             PlotPoint::from(((start + end) / 2.0).data.0[0]),
-            CSPlot::get_sized_text(&self.sim_state, format!("{string} : {value:?}"), 1.0),
+            CSPlot::get_sized_text(
+                &self.sim_state,
+                format!("{string} : {value:?}"),
+                PlotTextSize::Medium.get_size(),
+            ),
         )
         .color(color.get_color())
         .name(string.clone());
@@ -420,7 +424,7 @@ pub struct ObjectTraceLine {
 }
 
 impl ObjectTraceLine {
-    const MIN_TIME: f64 = 0.25;
+    const MIN_TIME: f64 = 0.0125;
     const MAX_DISTANCE: f64 = 225.0;
 
     pub(crate) fn new() -> Self {

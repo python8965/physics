@@ -6,14 +6,15 @@ use nalgebra::Vector2;
 use crate::app::graphics::define::PlotDrawItem;
 use crate::app::graphics::CSPlotObjects;
 use crate::app::simulations::classic_simulation::object::CSObjectState;
-use crate::app::simulations::classic_simulation::template::init::{BasicSimInit, BasicSimInitObjData, SimulationInit};
+use crate::app::simulations::classic_simulation::template::init::{
+    BasicSimInit, BasicSimInitObjData, SimulationInit,
+};
 use crate::app::simulations::classic_simulation::template::stamp::{
     CSObjectStamp, CSObjectStampResult,
 };
 use crate::app::simulations::classic_simulation::CSObject;
 use crate::app::NVec2;
 
-mod classic;
 pub mod init;
 pub mod stamp;
 
@@ -47,36 +48,36 @@ impl CSTemplate {
     }
 }
 
-pub fn get_sim_list()-> [CSTemplate; 4] {
+pub fn get_sim_list() -> [CSTemplate; 4] {
     [
-    CSTemplate::BasicSim,
-    CSTemplate::BasicSimWithInit(BasicSimInit {
-        objects: vec![
-            BasicSimInitObjData {
-                mass: 5.0,
-                theta: 30.0,
-                start_velocity_mul: 20.0,
-            },
-            BasicSimInitObjData {
-                mass: 5.0,
-                theta: 60.0,
-                start_velocity_mul: 20.0,
-            },
-            BasicSimInitObjData {
-                mass: 5.0,
-                theta: 15.0,
-                start_velocity_mul: 20.0,
-            },
-            BasicSimInitObjData {
-                mass: 5.0,
-                theta: 75.0,
-                start_velocity_mul: 20.0,
-            },
-        ],
-    }),
-    CSTemplate::ProjectileMotionSim,
-    CSTemplate::ProjectileMotionSim2,
-]
+        CSTemplate::BasicSim,
+        CSTemplate::BasicSimWithInit(BasicSimInit {
+            objects: vec![
+                BasicSimInitObjData {
+                    mass: 5.0,
+                    theta: 30.0,
+                    start_velocity_mul: 20.0,
+                },
+                BasicSimInitObjData {
+                    mass: 5.0,
+                    theta: 60.0,
+                    start_velocity_mul: 20.0,
+                },
+                BasicSimInitObjData {
+                    mass: 5.0,
+                    theta: 15.0,
+                    start_velocity_mul: 20.0,
+                },
+                BasicSimInitObjData {
+                    mass: 5.0,
+                    theta: 75.0,
+                    start_velocity_mul: 20.0,
+                },
+            ],
+        }),
+        CSTemplate::ProjectileMotionSim,
+        CSTemplate::ProjectileMotionSim2,
+    ]
 }
 
 pub struct CSPreset {
@@ -97,21 +98,22 @@ fn basic_sim_init(data: BasicSimInit) -> CSPreset {
     // value have any item
     // let force = value.theta * 5.0;
     // force_list.push(force) // how to?
-    let objects = data.objects.iter().map(|obj|{
-        let velocity = obj.theta.to_radians().sin_cos();
-        let velocity = Vector2::new(velocity.0, velocity.1) * obj.start_velocity_mul;
+    let objects = data
+        .objects
+        .iter()
+        .map(|obj| {
+            let velocity = obj.theta.to_radians().sin_cos();
+            let velocity = Vector2::new(velocity.0, velocity.1) * obj.start_velocity_mul;
 
-        let a = CSObject::new().state(CSObjectState {
-            position: NVec2::new(1.0, 0.0),
-            momentum: velocity * obj.mass,
-            mass: obj.mass,
-            ..CSObjectState::default()
-        });
+            let a = CSObject::new().state(CSObjectState {
+                momentum: velocity * obj.mass,
+                mass: obj.mass,
+                ..CSObjectState::default()
+            });
 
-        a
-    }).collect::<Vec<_>>();
-
-
+            a
+        })
+        .collect::<Vec<_>>();
 
     let func = |state: &CSObjectState, time: f64| {
         if (0.0..=0.1).contains(&state.velocity().norm()) {

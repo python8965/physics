@@ -152,4 +152,8 @@ impl SimulationManager {
     pub fn get_pause(&self) -> bool {
         self.is_paused
     }
+
+    pub fn is_initializing(&self) -> bool {
+        self.init_manager.is_initializing()
+    }
 }
