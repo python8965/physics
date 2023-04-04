@@ -6,7 +6,7 @@ use nalgebra::Vector2;
 use crate::app::graphics::define::PlotDrawItem;
 use crate::app::graphics::CSPlotObjects;
 use crate::app::simulations::classic_simulation::object::CSObjectState;
-use crate::app::simulations::classic_simulation::template::init::{BasicSimInit, SimulationInit};
+use crate::app::simulations::classic_simulation::template::init::{BasicSimInit, BasicSimInitObjData, SimulationInit};
 use crate::app::simulations::classic_simulation::template::stamp::{
     CSObjectStamp, CSObjectStampResult,
 };
@@ -17,7 +17,7 @@ mod classic;
 pub mod init;
 pub mod stamp;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum CSTemplate {
     BasicSim,
     BasicSimWithInit(BasicSimInit),
@@ -27,7 +27,7 @@ pub enum CSTemplate {
 
 impl CSTemplate {
     pub fn get_name(&self) -> String {
-        format!("{:?}", self)
+        format!("{:?}", self).split("(").collect::<Vec<&str>>()[0].to_string()
     }
 
     pub fn get_preset_with_ui(self) -> CSPreset {
@@ -39,24 +39,45 @@ impl CSTemplate {
         }
     }
 
-    pub fn get_data(self) -> Option<Box<dyn SimulationInit>> {
+    pub fn get_data(&self) -> Option<Box<dyn SimulationInit>> {
         match self {
-            CSTemplate::BasicSimWithInit(data) => Some(Box::new(data)),
+            CSTemplate::BasicSimWithInit(data) => Some(Box::new(data.clone())),
             _ => None,
         }
     }
 }
 
-pub const SIM: &[CSTemplate] = &[
+pub fn get_sim_list()-> [CSTemplate; 4] {
+    [
     CSTemplate::BasicSim,
     CSTemplate::BasicSimWithInit(BasicSimInit {
-        theta: 0.0,
-        start_velocity_mul: 10.0,
-        mass: 10.0,
+        objects: vec![
+            BasicSimInitObjData {
+                mass: 5.0,
+                theta: 30.0,
+                start_velocity_mul: 20.0,
+            },
+            BasicSimInitObjData {
+                mass: 5.0,
+                theta: 60.0,
+                start_velocity_mul: 20.0,
+            },
+            BasicSimInitObjData {
+                mass: 5.0,
+                theta: 15.0,
+                start_velocity_mul: 20.0,
+            },
+            BasicSimInitObjData {
+                mass: 5.0,
+                theta: 75.0,
+                start_velocity_mul: 20.0,
+            },
+        ],
     }),
     CSTemplate::ProjectileMotionSim,
     CSTemplate::ProjectileMotionSim2,
-];
+]
+}
 
 pub struct CSPreset {
     pub simulation_objects: Vec<CSObject>,
@@ -76,15 +97,21 @@ fn basic_sim_init(data: BasicSimInit) -> CSPreset {
     // value have any item
     // let force = value.theta * 5.0;
     // force_list.push(force) // how to?
-    let velocity = data.theta.to_radians().sin_cos();
-    let velocity = Vector2::new(velocity.0, velocity.1) * data.start_velocity_mul;
+    let objects = data.objects.iter().map(|obj|{
+        let velocity = obj.theta.to_radians().sin_cos();
+        let velocity = Vector2::new(velocity.0, velocity.1) * obj.start_velocity_mul;
 
-    let a = CSObject::new().state(CSObjectState {
-        position: NVec2::new(1.0, 0.0),
-        momentum: velocity * data.mass,
-        mass: data.mass,
-        ..CSObjectState::default()
-    });
+        let a = CSObject::new().state(CSObjectState {
+            position: NVec2::new(1.0, 0.0),
+            momentum: velocity * obj.mass,
+            mass: obj.mass,
+            ..CSObjectState::default()
+        });
+
+        a
+    }).collect::<Vec<_>>();
+
+
 
     let func = |state: &CSObjectState, time: f64| {
         if (0.0..=0.1).contains(&state.velocity().norm()) {
@@ -104,7 +131,7 @@ fn basic_sim_init(data: BasicSimInit) -> CSPreset {
     let plot_objects = CSPlotObjects::default().add_stamp(stamp);
 
     CSPreset {
-        simulation_objects: vec![a],
+        simulation_objects: objects,
         plot_objects,
         ..CSPreset::default()
     }

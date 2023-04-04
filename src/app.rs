@@ -6,7 +6,7 @@ use crate::app::audio::player::MusicPlayer;
 use crate::app::graphics::image::ImageManager;
 use crate::app::manager::SimulationManager;
 use crate::app::simulations::classic_simulation::state::update_simulation_state;
-use crate::app::simulations::classic_simulation::template::SIM;
+use crate::app::simulations::classic_simulation::template::get_sim_list;
 use crate::app::util::FrameHistory;
 
 mod audio;
@@ -213,13 +213,13 @@ impl eframe::App for State {
                             }
                         });
 
-                        let _buttons = SIM
+                        let _buttons = get_sim_list()
                             .iter()
                             .map(|sim_type| {
                                 let button = ui.button(sim_type.get_name());
 
                                 if button.clicked() {
-                                    self.simulation_manager.new_simulation(*sim_type);
+                                    self.simulation_manager.new_simulation(sim_type.clone());
                                 }
 
                                 button

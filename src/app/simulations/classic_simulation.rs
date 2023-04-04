@@ -43,7 +43,8 @@ fn physics_system(dt: Float, obj: &mut CSObject) {
         // Δv = a * Δt
         // Δp = ΣF * Δt
         // Δs = v * Δt
-        let sigma_force = obj.state.sigma_force(); // a
+
+        let sigma_force = obj.state.sigma_force(); // ΣF
 
         let delta_momentum = sigma_force * dt;
 

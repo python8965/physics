@@ -15,7 +15,7 @@ fn build() {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "eframe template",
+        "Simulation",
         native_options,
         Box::new(|cc| Box::new(physics::State::new(cc))),
     )
