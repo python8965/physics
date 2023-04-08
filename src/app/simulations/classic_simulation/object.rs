@@ -2,6 +2,7 @@ use crate::app::graphics::define::DrawShapeType;
 
 use crate::app::graphics::plot::ObjectTraceLine;
 use crate::app::NVec2;
+use nalgebra::{vector, SMatrix};
 use std::ops::Div;
 
 #[derive(Clone, Debug)]
@@ -46,52 +47,42 @@ impl CSObject {
     }
 }
 
+pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
+pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];
+
+#[repr(usize)]
+pub enum ForceIndex {
+    Gravity = 0,
+    UserInteraction = 1,
+    MAX = 2,
+}
+
 #[derive(Clone, Debug)]
 pub struct CSObjectState {
     pub position: NVec2,
-    pub momentum: NVec2,
+    pub velocity: NVec2,
     pub mass: f64,
-    pub velocity_list: Vec<NVec2>,
+    pub acc_list: Vec<NVec2>,
 }
 
 impl CSObjectState {
-    pub fn position(mut self, position: NVec2) -> Self {
-        self.position = position;
-        self
-    }
-
-    pub fn momentum(mut self, momentum: NVec2) -> Self {
-        self.momentum = momentum;
-        self
-    }
-
-    pub fn mass(mut self, mass: f64) -> Self {
-        self.mass = mass;
-        self
-    }
-
-    pub fn velocity_list(mut self, velocity_list: Vec<NVec2>) -> Self {
-        self.velocity_list = velocity_list;
-        self
-    }
-
-    pub(crate) fn velocity(&self) -> NVec2 {
+    pub(crate) fn momentum(&self) -> NVec2 {
         // P = mv , v = P/m
-        self.momentum.div(self.mass)
+        self.velocity * self.mass
     }
 
     pub fn sigma_force(&self) -> NVec2 {
         // ΣF = F1 + F2 + F3 + ...
-        self.velocity_list.iter().sum::<NVec2>() * self.mass
+        self.acceleration() / self.mass
     }
 
     pub fn acceleration(&self) -> NVec2 {
         // a = F/m
-        self.sigma_force().div(self.mass)
+        self.acc_list.iter().sum::<NVec2>()
     }
 
     pub fn scale(&self) -> f64 {
-        5.0 + (self.mass / 2.0)
+        5.0 + (self.mass / 4.0)
     }
 }
 
@@ -99,9 +90,13 @@ impl Default for CSObjectState {
     fn default() -> Self {
         Self {
             position: Default::default(),
-            momentum: Default::default(),
+            velocity: Default::default(),
             mass: 10.0,
-            velocity_list: vec![NVec2::new(0.0, -9.8)],
+            acc_list: {
+                let mut acc_list = vec![NVec2::zeros(); ForceIndex::MAX as usize];
+                acc_list[ForceIndex::Gravity as usize] = GRAVITY;
+                acc_list
+            },
         }
     }
 }

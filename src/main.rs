@@ -23,6 +23,7 @@ fn build() {
 }
 
 fn main() {
+    puffin::set_scopes_on(true);
     build();
 }
 

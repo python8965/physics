@@ -96,6 +96,12 @@ impl eframe::App for State {
         let current_time = ctx.input(|i| i.time);
         let cpu_usage = frame.info().cpu_usage;
 
+        puffin::profile_function!();
+        puffin::GlobalProfiler::lock().new_frame(); // call once per frame!
+                                                    //puffin_egui::profiler_window(ctx);
+
+        self.simulation_manager.step();
+
         self.frame_history.on_new_frame(current_time, cpu_usage);
 
         let memo = "caucation !! in-simulation-pos is not exactly same with calculated pos_{{final}}\n\
@@ -202,7 +208,7 @@ impl eframe::App for State {
                         ui.horizontal(|ui| {
                             ui.label("Time mul");
                             let _slider =
-                                Slider::new(self.simulation_manager.time_multiplier(), 0.5..=4.0)
+                                Slider::new(self.simulation_manager.time_multiplier(), 0.1..=5.0)
                                     .ui(ui);
                         });
 
@@ -260,7 +266,7 @@ impl eframe::App for State {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-
+            puffin::profile_scope!("Plot");
             if let (Some(simulation), simulation_plot, state) =
                 self.simulation_manager.get_simulation()
             {
@@ -279,7 +285,8 @@ impl eframe::App for State {
 
                 let response = plot.show(ui, |plot_ui| {
                     update_simulation_state(state, plot_ui);
-                    simulation_plot.draw(simulation, plot_ui, *state);
+                    simulation_plot.draw(simulation, plot_ui, state);
+
                     plot_ui.pointer_coordinate()
                 });
 
@@ -290,7 +297,5 @@ impl eframe::App for State {
         });
 
         ctx.request_repaint();
-
-        self.simulation_manager.step();
     }
 }

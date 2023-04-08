@@ -1,4 +1,4 @@
-use std::ops::Mul;
+
 
 use egui::plot::{Line, PlotPoints};
 use nalgebra::Vector2;
@@ -106,7 +106,7 @@ fn basic_sim_init(data: BasicSimInit) -> CSPreset {
             let velocity = Vector2::new(velocity.0, velocity.1) * obj.start_velocity_mul;
 
             let a = CSObject::new().state(CSObjectState {
-                momentum: velocity * obj.mass,
+                velocity,
                 mass: obj.mass,
                 ..CSObjectState::default()
             });
@@ -116,10 +116,10 @@ fn basic_sim_init(data: BasicSimInit) -> CSPreset {
         .collect::<Vec<_>>();
 
     let func = |state: &CSObjectState, time: f64| {
-        if (0.0..=0.1).contains(&state.velocity().norm()) {
+        if state.position.y < 0.0 {
             Some(
                 CSObjectStampResult::default()
-                    .label("WHEN |velocity| < 0.1")
+                    .label("WHEN pos < 0.1")
                     .state(state.clone())
                     .time(time),
             )
@@ -158,8 +158,7 @@ fn projectile_motion_sim() -> CSPreset {
         .iter()
         .map(|x| {
             CSObject::new().state(CSObjectState {
-                momentum: NVec2::new(*x, *x).mul(mass),
-
+                velocity: NVec2::new(*x, *x),
                 mass,
                 position: NVec2::new(1.0, 0.0),
                 ..CSObjectState::default()
@@ -180,7 +179,7 @@ fn projectile_motion_2_sim() -> CSPreset {
         .iter()
         .map(|x| {
             CSObject::new().state(CSObjectState {
-                momentum: NVec2::new(*x, *x).mul(mass),
+                velocity: NVec2::new(*x, *x),
 
                 mass,
                 position: NVec2::new(1.0, 0.0),

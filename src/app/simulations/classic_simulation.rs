@@ -3,6 +3,7 @@ pub mod state;
 pub mod template;
 
 use crate::app::Float;
+use tracing::info;
 
 pub use object::CSObject;
 
@@ -35,7 +36,11 @@ impl Simulation for ClassicSimulation {
     }
 }
 
-fn physics_system(dt: Float, obj: &mut CSObject) {
+//noinspection ALL
+#[allow(non_snake_case)]
+fn physics_system(Δt: Float, obj: &mut CSObject) {
+    info!("{:?}", obj.state.position);
+
     obj.state.position = {
         // ΣF
         // ΣF = ma
@@ -44,14 +49,20 @@ fn physics_system(dt: Float, obj: &mut CSObject) {
         // Δp = ΣF * Δt
         // Δs = v * Δt
 
-        let sigma_force = obj.state.sigma_force(); // ΣF
+        let Σa = obj.state.acceleration(); // Σa
 
-        let delta_momentum = sigma_force * dt;
+        let Δv = Σa * Δt;
 
-        obj.state.momentum += delta_momentum;
+        let v = obj.state.velocity;
+
+        let Δs = v * Δt;
+        let Δs_error = (Δv * Δt) / 2.0; // 등가속도 운동에서의 보정.
+        let Δs = Δs + Δs_error;
+        info!("Δs: {:?}", Δs);
         // Δs = v * Δt
 
-        let delta_position = obj.state.velocity() * dt;
-        obj.state.position + delta_position
+        obj.state.velocity += Δv;
+
+        obj.state.position + Δs
     };
 }

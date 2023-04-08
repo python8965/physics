@@ -5,10 +5,11 @@ use egui::{plot, Align2, InnerResponse, Pos2, RichText, TextStyle};
 use nalgebra::vector;
 use std::f64::consts::TAU;
 use std::fmt::Debug;
+use tracing::info;
 
 use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem, PlotTextSize};
 use crate::app::graphics::CSPlotObjects;
-use crate::app::simulations::classic_simulation::object::CSObjectState;
+use crate::app::simulations::classic_simulation::object::{CSObjectState, ForceIndex, ZERO_FORCE};
 use crate::app::simulations::classic_simulation::state::CSimState;
 use crate::app::simulations::classic_simulation::{CSObject, Simulation};
 use crate::app::NVec2;
@@ -16,11 +17,7 @@ use crate::app::NVec2;
 pub mod object;
 
 pub struct CSPlot {
-    init: bool,
-
     pub plot_objects: CSPlotObjects,
-
-    sim_state: CSimState,
 
     near_value: f64,
     nearest_label: String,
@@ -33,7 +30,6 @@ pub struct CSPlot {
 impl Default for CSPlot {
     fn default() -> Self {
         Self {
-            init: true,
             plot_objects: CSPlotObjects::default(),
 
             near_value: ObjectTraceLine::MAX_DISTANCE,
@@ -42,7 +38,6 @@ impl Default for CSPlot {
 
             dragging_object: false,
             selected_index: 0,
-            sim_state: Default::default(),
         }
     }
 }
@@ -96,22 +91,15 @@ impl CSPlot {
             if response.dragged() && self.dragging_object {
                 let pos = simulation_objects[self.selected_index].state.position;
                 let selected = &mut simulation_objects[self.selected_index];
-                if selected.state.velocity_list.len() == 2 {
-                    selected.state.velocity_list[1] =
-                        vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
-                } else {
-                    selected
-                        .state
-                        .velocity_list
-                        .push(vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y]);
-                }
+
+                selected.state.acc_list[ForceIndex::UserInteraction as usize] =
+                    vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
             }
 
             if !response.dragged() && self.dragging_object {
                 let selected = &mut simulation_objects[self.selected_index];
-                if selected.state.velocity_list.len() == 2 {
-                    selected.state.velocity_list.remove(1);
-                }
+
+                selected.state.acc_list[ForceIndex::UserInteraction as usize] = ZERO_FORCE;
 
                 self.dragging_object = false;
             }
@@ -123,17 +111,14 @@ impl CSPlot {
         &mut self,
         simulation: &mut Box<dyn Simulation>,
         plot_ui: &mut PlotUi,
-        state: CSimState,
+        state: &mut CSimState,
     ) {
         self.nearest_label = String::new();
         self.near_value = ObjectTraceLine::MAX_DISTANCE;
-        self.sim_state = state;
 
-        // 처음에는 그래프의 범위를 설정한다.
-        if self.init {
-            self.init = false;
-
-            plot_ui.set_plot_bounds(PlotBounds::from_min_max([-100.0, -100.0], [100.0, 100.0]))
+        if !state.sim_started {
+            plot_ui.set_plot_bounds(PlotBounds::from_min_max([-100.0, -100.0], [100.0, 100.0]));
+            state.sim_started = true;
         }
 
         let simulation_objects = simulation.get_children();
@@ -156,7 +141,7 @@ impl CSPlot {
                 Polygon::new(Self::get_object_points(obj)).color(PlotColor::Object.get_color()),
             );
 
-            self.draw_object(obj, plot_ui, index);
+            self.draw_object(obj, state, plot_ui, index);
         }
 
         // 가장 가까운 점의 정보를 표시한다.
@@ -185,14 +170,20 @@ impl CSPlot {
     }
 
     // 오브젝트의 정보 모양을 반환한다.
-    pub fn draw_object(&mut self, obj: &mut CSObject, plot_ui: &mut PlotUi, index: usize) {
+    pub fn draw_object(
+        &mut self,
+        obj: &mut CSObject,
+        sim_state: &CSimState,
+        plot_ui: &mut PlotUi,
+        index: usize,
+    ) {
         let get_state_text_raw = |state: &CSObjectState| {
             format!(
                 "Position : {:.3?}\nVelocity : {:.3?}\nForce(s) : {:.3?}\nMomentum : {:.3?}",
                 state.position,
-                state.velocity().norm(),
-                state.velocity_list,
-                state.momentum
+                state.momentum().norm(),
+                state.acc_list,
+                state.velocity
             )
         };
 
@@ -201,13 +192,13 @@ impl CSPlot {
 
             Text::new(
                 PlotPoint::new(state.position.x, state.position.y),
-                CSPlot::get_sized_text(&self.sim_state, text, PlotTextSize::Small.get_size()),
+                CSPlot::get_sized_text(sim_state, text, PlotTextSize::Small.get_size()),
             )
         };
 
-        if self.sim_state.settings.stamp && self.sim_state.is_sim_started() {
+        if sim_state.settings.stamp && sim_state.is_sim_started() {
             for stamp in self.plot_objects.get_stamps() {
-                if let Some(stamp_result) = stamp.get_data(&obj.state, index, self.sim_state.time) {
+                if let Some(stamp_result) = stamp.get_data(&obj.state, index, sim_state.time) {
                     let text = format!(
                         "<Stamp>\nLabel:{:?}\n{:}\nOn State Time {:.3?}",
                         stamp_result.label,
@@ -220,11 +211,7 @@ impl CSPlot {
                             stamp_result.state.position.x,
                             stamp_result.state.position.y,
                         ),
-                        CSPlot::get_sized_text(
-                            &self.sim_state,
-                            text,
-                            PlotTextSize::Medium.get_size(),
-                        ),
+                        CSPlot::get_sized_text(sim_state, text, PlotTextSize::Medium.get_size()),
                     )
                     .anchor(Align2::LEFT_TOP)
                     .name(stamp_result.name.clone())
@@ -241,73 +228,87 @@ impl CSPlot {
             }
         }
 
-        if self.sim_state.settings.text {
+        if sim_state.settings.text {
             plot_ui.text(get_obj_state_text(&obj.state));
         }
 
-        if self.sim_state.settings.sigma_force {
+        if sim_state.settings.sigma_force {
             let sigma_force = obj.state.sigma_force(); // Sum of force
 
             let vector = (obj.state.position, obj.state.position + sigma_force);
 
             let data = ("Sigma_Force", (vector.1 - vector.0));
 
-            let (text, arrows) =
-                self.get_info_vector((vector.0, vector.1), PlotColor::SigmaForceVector, data);
-
-            plot_ui.arrows(arrows);
-            plot_ui.text(text);
-        }
-
-        if self.sim_state.settings.velocity {
-            let vector = (
-                obj.state.position,
-                obj.state.position + obj.state.velocity(),
+            let (text, arrows) = CSPlot::get_info_vector(
+                sim_state,
+                (vector.0, vector.1),
+                PlotColor::SigmaForceVector,
+                data,
             );
 
-            let data = ("Velocity", obj.state.velocity().norm());
-
-            let (text, arrows) =
-                self.get_info_vector((vector.0, vector.1), PlotColor::VelocityVector, data);
             plot_ui.arrows(arrows);
             plot_ui.text(text);
         }
 
-        if self.sim_state.settings.acceleration {
-            for acceleration in &mut obj.state.velocity_list {
-                let vector = (obj.state.position, obj.state.position + *acceleration);
+        if sim_state.settings.velocity {
+            let vector = (obj.state.position, obj.state.position + obj.state.velocity);
+
+            let data = ("Velocity", obj.state.velocity.norm());
+
+            let (text, arrows) = CSPlot::get_info_vector(
+                sim_state,
+                (vector.0, vector.1),
+                PlotColor::VelocityVector,
+                data,
+            );
+            plot_ui.arrows(arrows);
+            plot_ui.text(text);
+        }
+
+        if sim_state.settings.acceleration {
+            for force in &obj.state.acc_list {
+                let acceleration = force / obj.state.mass;
+
+                let vector = (obj.state.position, obj.state.position + acceleration);
 
                 let data = ("acceleration", acceleration);
 
-                let (text, arrows) =
-                    self.get_info_vector((vector.0, vector.1), PlotColor::ForceVector, data);
+                let (text, arrows) = CSPlot::get_info_vector(
+                    sim_state,
+                    (vector.0, vector.1),
+                    PlotColor::ForceVector,
+                    data,
+                );
 
                 plot_ui.arrows(arrows);
                 plot_ui.text(text);
             }
         }
 
-        if self.sim_state.settings.equation {
-            let sim_time = self.sim_state.time;
+        if sim_state.settings.equation {
+            let sim_time = sim_state.time;
             let current_pos = obj.state.position;
             let init_pos = obj.init_state().position;
-            let init_velocity = obj.init_state().velocity();
+            let init_velocity = obj.init_state().velocity;
             let acceleration = obj.state.acceleration();
-
+            let calc_pos =
+                init_pos + (init_velocity * sim_time) + (0.5 * acceleration * sim_time.powi(2));
             let text = Self::get_sized_text(
-                &self.sim_state,
+                sim_state,
                 format!(
                     "pos_{{final}} = pos_{{start}} +v_{{start}}*t + 1/2 * a_{{start}}*t^2\n\
                          pos_{{final}} = {:.3?} + {:.3?}*{:.3?} + 1/2 * {:.3?}*{:.3?}^2\n\
                          calculated pos_{{final}} = {:.3?} and in-simulation-pos = {:.3?}\n\
+                         error = {:.3?}\n\
                          ",
                     init_pos,
                     init_velocity,
                     sim_time,
                     acceleration,
                     sim_time,
-                    init_pos + (init_velocity * sim_time) + (0.5 * acceleration * sim_time.powi(2)),
+                    calc_pos,
                     current_pos,
+                    (calc_pos - current_pos).norm()
                 ),
                 10.0,
             )
@@ -323,10 +324,10 @@ impl CSPlot {
             plot_ui.text(text);
         }
 
-        {
+        if sim_state.sim_started {
             let trace_line = &mut obj.trace_line;
 
-            let res = trace_line.update(plot_ui, obj.state.position, self.sim_state);
+            let res = trace_line.update(plot_ui, obj.state.position, sim_state);
 
             if !res.1.is_empty() && res.0 < self.near_value {
                 self.near_value = res.0;
@@ -334,7 +335,7 @@ impl CSPlot {
                 self.nearest_point = res.2;
             }
 
-            if self.sim_state.settings.trace {
+            if sim_state.settings.trace {
                 plot_ui.line(trace_line.line());
             }
         }
@@ -371,7 +372,7 @@ impl CSPlot {
 
     // 벡터의 화살표 모양을 반환한다.
     fn get_info_vector(
-        &self,
+        sim_state: &CSimState,
         vector: (NVec2, NVec2),
         color: PlotColor,
         data: (impl ToString, impl Debug),
@@ -387,7 +388,7 @@ impl CSPlot {
         let text = Text::new(
             PlotPoint::from(((start + end) / 2.0).data.0[0]),
             CSPlot::get_sized_text(
-                &self.sim_state,
+                &sim_state,
                 format!("{string} : {value:?}"),
                 PlotTextSize::Medium.get_size(),
             ),
@@ -431,7 +432,7 @@ impl ObjectTraceLine {
         Self {
             data: vec![],
             last_pos: NVec2::new(0.0, 0.0),
-            last_time: -Self::MIN_TIME,
+            last_time: -Self::MIN_TIME * 2.0,
         }
     }
 
@@ -439,7 +440,7 @@ impl ObjectTraceLine {
         &mut self,
         plot_ui: &mut PlotUi,
         pos: NVec2,
-        state: CSimState,
+        state: &CSimState,
     ) -> (f64, String, PlotPoint) {
         let time = state.time;
 

@@ -3,7 +3,7 @@ use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation}
 use crate::app::Float;
 use egui::Ui;
 use instant::Instant;
-use tracing::info;
+
 
 mod init_manager;
 
@@ -93,7 +93,7 @@ impl SimulationManager {
         self.simulation
             .replace(Box::new(ClassicSimulation::from(simulation_objects)));
 
-        self.sim_state.time = 0.0;
+        self.sim_state.reset();
     }
 
     pub fn update_simulation(&mut self) {
@@ -109,19 +109,17 @@ impl SimulationManager {
     }
 
     pub fn step(&mut self) {
-        if !self.is_paused {
+        if !self.is_paused && self.sim_state.sim_started {
             let mut dt = self.last_time_stamp.elapsed().as_secs_f64();
-            info!("dt: {}", dt);
-            if dt > (1.0 / 60.0) {
-                self.last_time_stamp = Instant::now();
-                dt *= self.sim_time_multiplier;
 
-                if let Some(simulation) = &mut self.simulation {
-                    simulation.step(dt as Float);
-                }
+            self.last_time_stamp = Instant::now();
+            dt *= self.sim_time_multiplier;
 
-                self.sim_state.time += dt;
+            if let Some(simulation) = &mut self.simulation {
+                simulation.step(dt as Float);
             }
+
+            self.sim_state.time += dt;
         } else {
             if self.init_manager.is_initializing() {
                 self.update_simulation();

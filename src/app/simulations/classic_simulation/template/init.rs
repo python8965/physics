@@ -36,7 +36,7 @@ impl SimulationInit for BasicSimInit {
 
         let mut remove = None;
 
-        let response = self.objects.iter_mut().enumerate().map(|(index, obj)|{
+        let _response = self.objects.iter_mut().enumerate().map(|(index, obj)|{
             ui.separator();
 
             let theta = Slider::new(&mut obj.theta, 0.0..=90.0)
