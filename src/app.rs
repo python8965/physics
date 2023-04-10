@@ -1,6 +1,9 @@
-use egui::plot::{Legend, Plot};
+use egui::plot::{GridInput, GridMark, Legend, Plot};
 use egui::{ScrollArea, Slider, Widget};
 use nalgebra::Vector2;
+use std::cmp::Ordering;
+use std::ops::RangeBounds;
+use tracing::Instrument;
 
 use crate::app::audio::player::MusicPlayer;
 use crate::app::graphics::image::ImageManager;
@@ -50,10 +53,10 @@ impl State {
     }
 }
 
-fn new_with_context(_ctx: &egui::Context) {
-
-    // Start with the default fonts (we will be adding to them rather than replacing them).
-    // let mut fonts = egui::FontDefinitions::default();
+fn new_with_context(ctx: &egui::Context) {
+    ctx.set_visuals(egui::Visuals::dark()); // always dark mode
+                                            // Start with the default fonts (we will be adding to them rather than replacing them).
+                                            // let mut fonts = egui::FontDefinitions::default();
 
     // // Install my own font (maybe supporting non-latin characters).
     // // .ttf and .otf files supported.
@@ -121,7 +124,31 @@ impl eframe::App for State {
                     self.simulation_manager.initialize_ui(ui);
                 });
             });
+        } else {
+            egui::SidePanel::right("Inspection").show(ctx, |ui| {
+                ScrollArea::new([false, true]).show(ui, |ui| {
+                    ui.heading("Inspection");
+                    ui.label("Click Object to inspect it.");
+                    ui.separator();
+
+                    self.simulation_manager.inspection_ui(ui);
+                });
+            });
         }
+
+        egui::TopBottomPanel::bottom("Bottom Panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Timeline");
+                let length = self.simulation_manager.timestep();
+
+                if Slider::new(self.simulation_manager.current_timestep_mut(), 0..=length)
+                    .ui(ui)
+                    .dragged()
+                {
+                    self.simulation_manager.timestep_changed();
+                }
+            });
+        });
 
         egui::SidePanel::left("Simulation Type").show(ctx, |ui| {
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -201,7 +228,7 @@ impl eframe::App for State {
                         ui.label(format!("fps : {:.0?}", self.frame_history.fps()));
 
                         ui.label(format!(
-                            "Elapsed Time (ΣΔt) = {:.2?}",
+                            "At Time (ΣΔt) = {:.2?}",
                             self.simulation_manager.get_time()
                         ));
 
@@ -211,6 +238,10 @@ impl eframe::App for State {
                                 Slider::new(self.simulation_manager.time_multiplier(), 0.1..=5.0)
                                     .ui(ui);
                         });
+
+                        ui.separator();
+
+                        self.simulation_manager.settings_ui(ui);
 
                         ui.separator();
 
@@ -267,11 +298,62 @@ impl eframe::App for State {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             puffin::profile_scope!("Plot");
+            // egui::widgets::global_dark_light_mode_switch(ui);
+            //
+            // egui::Frame::canvas(ui.style()).show(ui, |ui| {
+            //     puffin::profile_scope!("Plot::show");
+            // });
+
+            fn default_spacer(grid_input: GridInput) -> Vec<GridMark> {
+                let log_base = 10.0;
+
+                fn next_power(value: f64, base: f64) -> f64 {
+                    assert_ne!(value, 0.0); // can be negative (typical for Y axis)
+                    base.powi(value.abs().log(base).ceil() as i32)
+                }
+
+                fn fill_marks_between(
+                    out: &mut Vec<GridMark>,
+                    step_size: f64,
+                    (min, max): (f64, f64),
+                ) {
+                    assert!(max > min);
+                    let first = (min / step_size).ceil() as i64;
+                    let last = (max / step_size).ceil() as i64;
+
+                    let marks_iter = (first..last).map(|i| {
+                        let value = (i as f64) * step_size;
+                        GridMark { value, step_size }
+                    });
+                    out.extend(marks_iter);
+                }
+
+                fn generate_marks(step_sizes: [f64; 3], bounds: (f64, f64)) -> Vec<GridMark> {
+                    let mut steps = vec![];
+                    fill_marks_between(&mut steps, step_sizes[0], bounds);
+                    fill_marks_between(&mut steps, step_sizes[1], bounds);
+                    fill_marks_between(&mut steps, step_sizes[2], bounds);
+                    steps
+                }
+
+                let smallest_visible_unit = next_power(grid_input.base_step_size, log_base) * 5.0;
+
+                let step_sizes = [
+                    smallest_visible_unit,
+                    smallest_visible_unit * log_base,
+                    smallest_visible_unit * log_base * log_base,
+                ];
+
+                generate_marks(step_sizes, grid_input.bounds)
+            }
+
             if let (Some(simulation), simulation_plot, state) =
                 self.simulation_manager.get_simulation()
             {
                 let legend = Legend::default();
                 let mut plot = Plot::new("Plot")
+                    .x_grid_spacer(default_spacer)
+                    .y_grid_spacer(default_spacer)
                     .allow_boxed_zoom(false)
                     .data_aspect(1.0)
                     .allow_double_click_reset(false)

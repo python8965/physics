@@ -1,7 +1,7 @@
 use eframe::epaint::FontFamily;
 use egui::epaint::util::FloatOrd;
 use egui::plot::{Arrows, Line, PlotBounds, PlotPoint, PlotPoints, PlotUi, Points, Polygon, Text};
-use egui::{plot, Align2, InnerResponse, Pos2, RichText, TextStyle};
+use egui::{emath, plot, Align2, InnerResponse, Pos2, Rect, RichText, Sense, TextStyle, Ui};
 use nalgebra::vector;
 use std::f64::consts::TAU;
 use std::fmt::Debug;
@@ -9,35 +9,44 @@ use tracing::info;
 
 use crate::app::graphics::define::{DrawShapeType, PlotColor, PlotDrawItem, PlotTextSize};
 use crate::app::graphics::CSPlotObjects;
-use crate::app::simulations::classic_simulation::object::{CSObjectState, ForceIndex, ZERO_FORCE};
+use crate::app::simulations::classic_simulation::object::{CSObjectState, ForceIndex};
 use crate::app::simulations::classic_simulation::state::CSimState;
-use crate::app::simulations::classic_simulation::{CSObject, Simulation};
+use crate::app::simulations::classic_simulation::{CSObject, Simulation, ZERO_FORCE};
 use crate::app::NVec2;
 
 pub mod object;
 
+pub struct CSPlotData {
+    pub near_value: f64,
+    pub nearest_label: String,
+    pub nearest_point: PlotPoint,
+    pub dragging_object: bool,
+    pub selected_index: usize,
+}
+
+impl Default for CSPlotData {
+    fn default() -> Self {
+        Self {
+            near_value: 0.0,
+            nearest_label: String::new(),
+            nearest_point: PlotPoint::new(0.0, 0.0),
+            dragging_object: false,
+            selected_index: 0,
+        }
+    }
+}
+
 pub struct CSPlot {
     pub plot_objects: CSPlotObjects,
 
-    near_value: f64,
-    nearest_label: String,
-    nearest_point: PlotPoint,
-
-    dragging_object: bool,
-    selected_index: usize,
+    plot_data: CSPlotData,
 }
 
 impl Default for CSPlot {
     fn default() -> Self {
         Self {
             plot_objects: CSPlotObjects::default(),
-
-            near_value: ObjectTraceLine::MAX_DISTANCE,
-            nearest_label: "".to_string(),
-            nearest_point: PlotPoint { x: 0.0, y: 0.0 },
-
-            dragging_object: false,
-            selected_index: 0,
+            plot_data: CSPlotData::default(),
         }
     }
 }
@@ -65,7 +74,7 @@ impl CSPlot {
     }
 
     pub fn is_dragging_object(&self) -> bool {
-        self.dragging_object
+        self.plot_data.dragging_object
     }
 
     // 입력을 받아서 상태를 업데이트한다.
@@ -78,30 +87,41 @@ impl CSPlot {
         let response = inner_response.response;
 
         if let Some(pointer_pos) = inner_response.inner {
-            if response.drag_started() {
+            if response.clicked() {
                 for (index, obj) in simulation_objects.iter_mut().enumerate() {
                     if is_inside(pointer_pos, Self::get_object_points(obj).points()) {
-                        self.selected_index = index;
-                        self.dragging_object = true;
+                        self.plot_data.selected_index = index;
                         break;
                     }
                 }
             }
 
-            if response.dragged() && self.dragging_object {
-                let pos = simulation_objects[self.selected_index].state.position;
-                let selected = &mut simulation_objects[self.selected_index];
+            if response.drag_started() {
+                for (index, obj) in simulation_objects.iter_mut().enumerate() {
+                    if is_inside(pointer_pos, Self::get_object_points(obj).points()) {
+                        self.plot_data.selected_index = index;
+                        self.plot_data.dragging_object = true;
+                        break;
+                    }
+                }
+            }
+
+            if response.dragged() && self.plot_data.dragging_object {
+                let pos = simulation_objects[self.plot_data.selected_index]
+                    .state
+                    .position;
+                let selected = &mut simulation_objects[self.plot_data.selected_index];
 
                 selected.state.acc_list[ForceIndex::UserInteraction as usize] =
                     vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
             }
 
-            if !response.dragged() && self.dragging_object {
-                let selected = &mut simulation_objects[self.selected_index];
+            if !response.dragged() && self.plot_data.dragging_object {
+                let selected = &mut simulation_objects[self.plot_data.selected_index];
 
                 selected.state.acc_list[ForceIndex::UserInteraction as usize] = ZERO_FORCE;
 
-                self.dragging_object = false;
+                self.plot_data.dragging_object = false;
             }
         }
     }
@@ -113,8 +133,8 @@ impl CSPlot {
         plot_ui: &mut PlotUi,
         state: &mut CSimState,
     ) {
-        self.nearest_label = String::new();
-        self.near_value = ObjectTraceLine::MAX_DISTANCE;
+        self.plot_data.nearest_label = String::new();
+        self.plot_data.near_value = ObjectTraceLine::MAX_DISTANCE;
 
         if !state.sim_started {
             plot_ui.set_plot_bounds(PlotBounds::from_min_max([-100.0, -100.0], [100.0, 100.0]));
@@ -125,8 +145,10 @@ impl CSPlot {
 
         // 마우스를 이 오브젝트에 포커싱 중이면서 드래그할 때 선을 그려준다.
         if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
-            if self.dragging_object {
-                let pos = simulation_objects[self.selected_index].state.position;
+            if self.plot_data.dragging_object {
+                let pos = simulation_objects[self.plot_data.selected_index]
+                    .state
+                    .position;
                 PlotDrawItem::Line(Line::new(vec![
                     [pos.x, pos.y],
                     [pointer_pos.x, pointer_pos.y],
@@ -145,15 +167,15 @@ impl CSPlot {
         }
 
         // 가장 가까운 점의 정보를 표시한다.
-        if !self.nearest_label.is_empty() {
+        if !self.plot_data.nearest_label.is_empty() {
             let text = Text::new(
                 {
                     |pos: Pos2| {
                         let a = plot_ui.plot_from_screen(Pos2::new(pos.x + 2.0, pos.y + 3.0));
                         PlotPoint::new(a.x, a.y)
                     }
-                }(plot_ui.screen_from_plot(self.nearest_point)),
-                RichText::new(self.nearest_label.clone())
+                }(plot_ui.screen_from_plot(self.plot_data.nearest_point)),
+                RichText::new(self.plot_data.nearest_label.clone())
                     .family(FontFamily::Proportional)
                     .text_style(TextStyle::Body),
             )
@@ -253,7 +275,7 @@ impl CSPlot {
         if sim_state.settings.velocity {
             let vector = (obj.state.position, obj.state.position + obj.state.velocity);
 
-            let data = ("Velocity", obj.state.velocity.norm());
+            let data = ("Velocity", obj.state.velocity);
 
             let (text, arrows) = CSPlot::get_info_vector(
                 sim_state,
@@ -266,9 +288,12 @@ impl CSPlot {
         }
 
         if sim_state.settings.acceleration {
-            for force in &obj.state.acc_list {
-                let acceleration = force / obj.state.mass;
-
+            for acceleration in obj
+                .state
+                .acc_list
+                .iter()
+                .filter(|x| !x.iter().all(|x| *x == 0.0))
+            {
                 let vector = (obj.state.position, obj.state.position + acceleration);
 
                 let data = ("acceleration", acceleration);
@@ -329,10 +354,10 @@ impl CSPlot {
 
             let res = trace_line.update(plot_ui, obj.state.position, sim_state);
 
-            if !res.1.is_empty() && res.0 < self.near_value {
-                self.near_value = res.0;
-                self.nearest_label = res.1;
-                self.nearest_point = res.2;
+            if !res.1.is_empty() && res.0 < self.plot_data.near_value {
+                self.plot_data.near_value = res.0;
+                self.plot_data.nearest_label = res.1;
+                self.plot_data.nearest_point = res.2;
             }
 
             if sim_state.settings.trace {

@@ -1,11 +1,10 @@
-
-
 use egui::plot::{Line, PlotPoints};
-use nalgebra::Vector2;
+use nalgebra::{vector, Vector2};
+use std::ops::{Index, IndexMut};
 
 use crate::app::graphics::define::PlotDrawItem;
 use crate::app::graphics::CSPlotObjects;
-use crate::app::simulations::classic_simulation::object::CSObjectState;
+use crate::app::simulations::classic_simulation::object::{CSObjectState, ForceIndex};
 use crate::app::simulations::classic_simulation::template::init::{
     BasicSimInit, BasicSimInitObjData, SimulationInit,
 };
@@ -20,38 +19,35 @@ pub mod stamp;
 
 #[derive(Clone, Debug)]
 pub enum CSTemplate {
-    BasicSim,
-    BasicSimWithInit(BasicSimInit),
+    DefaultSim(BasicSimInit),
     ProjectileMotionSim,
-    ProjectileMotionSim2,
+    CircleSim,
 }
 
 impl CSTemplate {
     pub fn get_name(&self) -> String {
-        format!("{:?}", self).split("(").collect::<Vec<&str>>()[0].to_string()
+        format!("{:?}", self).split('(').collect::<Vec<&str>>()[0].to_string()
     }
 
     pub fn get_preset_with_ui(self) -> CSPreset {
         match self {
-            CSTemplate::BasicSim => basic_sim(),
             CSTemplate::ProjectileMotionSim => projectile_motion_sim(),
-            CSTemplate::ProjectileMotionSim2 => projectile_motion_2_sim(),
-            CSTemplate::BasicSimWithInit(init) => basic_sim_init(init),
+            CSTemplate::DefaultSim(init) => default_sim(init),
+            CSTemplate::CircleSim => circle_sim(),
         }
     }
 
     pub fn get_data(&self) -> Option<Box<dyn SimulationInit>> {
         match self {
-            CSTemplate::BasicSimWithInit(data) => Some(Box::new(data.clone())),
+            CSTemplate::DefaultSim(data) => Some(Box::new(data.clone())),
             _ => None,
         }
     }
 }
 
-pub fn get_sim_list() -> [CSTemplate; 4] {
+pub fn get_sim_list() -> [CSTemplate; 3] {
     [
-        CSTemplate::BasicSim,
-        CSTemplate::BasicSimWithInit(BasicSimInit {
+        CSTemplate::DefaultSim(BasicSimInit {
             objects: vec![
                 BasicSimInitObjData {
                     mass: 5.0,
@@ -76,7 +72,7 @@ pub fn get_sim_list() -> [CSTemplate; 4] {
             ],
         }),
         CSTemplate::ProjectileMotionSim,
-        CSTemplate::ProjectileMotionSim2,
+        CSTemplate::CircleSim,
     ]
 }
 
@@ -94,7 +90,7 @@ impl Default for CSPreset {
     }
 }
 
-fn basic_sim_init(data: BasicSimInit) -> CSPreset {
+fn default_sim(data: BasicSimInit) -> CSPreset {
     // value have any item
     // let force = value.theta * 5.0;
     // force_list.push(force) // how to?
@@ -105,11 +101,14 @@ fn basic_sim_init(data: BasicSimInit) -> CSPreset {
             let velocity = obj.theta.to_radians().sin_cos();
             let velocity = Vector2::new(velocity.0, velocity.1) * obj.start_velocity_mul;
 
-            let a = CSObject::new().state(CSObjectState {
-                velocity,
-                mass: obj.mass,
-                ..CSObjectState::default()
-            });
+            let a = CSObject {
+                state: CSObjectState {
+                    velocity,
+                    mass: obj.mass,
+                    ..CSObjectState::default()
+                },
+                ..CSObject::default()
+            };
 
             a
         })
@@ -139,14 +138,34 @@ fn basic_sim_init(data: BasicSimInit) -> CSPreset {
     }
 }
 
-fn basic_sim() -> CSPreset {
-    let a = CSObject::new().state(CSObjectState {
-        position: NVec2::new(1.0, 0.0),
-        ..CSObjectState::default()
-    });
+fn circle_sim() -> CSPreset {
+    let mass = 5.0;
+
+    let sim = vec![5.0]
+        .iter()
+        .map(|x| CSObject {
+            state: CSObjectState {
+                velocity: NVec2::new(*x, *x),
+
+                mass,
+                position: NVec2::new(1.0, 0.0),
+
+                ..CSObjectState::default()
+            },
+            attached: Some(|obj, dt| {
+                let _ = std::mem::replace(obj.acc_list.index_mut(ForceIndex::Attached as usize), {
+                    let mut vector = obj.velocity.yx();
+                    vector.y *= -1.0;
+                    vector
+                });
+            }),
+            ..CSObject::default()
+        })
+        .collect::<Vec<_>>();
 
     CSPreset {
-        simulation_objects: vec![a],
+        simulation_objects: sim,
+
         ..CSPreset::default()
     }
 }
@@ -154,37 +173,17 @@ fn basic_sim() -> CSPreset {
 fn projectile_motion_sim() -> CSPreset {
     let mass = 5.0;
 
-    let sim = vec![2.0, 8.0, 20.0, 30.0, 40.0]
-        .iter()
-        .map(|x| {
-            CSObject::new().state(CSObjectState {
-                velocity: NVec2::new(*x, *x),
-                mass,
-                position: NVec2::new(1.0, 0.0),
-                ..CSObjectState::default()
-            })
-        })
-        .collect::<Vec<_>>();
-
-    CSPreset {
-        simulation_objects: sim,
-        ..CSPreset::default()
-    }
-}
-
-fn projectile_motion_2_sim() -> CSPreset {
-    let mass = 5.0;
-
     let sim = vec![2.0, 8.0, 20.0, 30.0, 40.0, 60.0, 100.0]
         .iter()
-        .map(|x| {
-            CSObject::new().state(CSObjectState {
+        .map(|x| CSObject {
+            state: CSObjectState {
                 velocity: NVec2::new(*x, *x),
 
                 mass,
                 position: NVec2::new(1.0, 0.0),
                 ..CSObjectState::default()
-            })
+            },
+            ..CSObject::default()
         })
         .collect::<Vec<_>>();
 
