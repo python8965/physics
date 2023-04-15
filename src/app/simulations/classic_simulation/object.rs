@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use crate::app::graphics::plot::ObjectTraceLine;
 use crate::app::NVec2;
-use nalgebra::{vector, SMatrix};
+
 
 pub type AttachedFn = fn(&mut CSObjectState, f64);
 
@@ -11,7 +11,7 @@ pub type AttachedFn = fn(&mut CSObjectState, f64);
 pub struct CSObject {
     pub state: CSObjectState,
 
-    pub state_history: Vec<CSObjectState>,
+    pub state_history: Vec<CSObjectStateHistory>,
 
     pub(super) init_state: CSObjectState,
 
@@ -45,7 +45,7 @@ impl CSObject {
     }
 
     pub fn state_at_step(&self, step: usize) -> CSObjectState {
-        self.state_history[step].clone()
+        self.state_history[step].state.clone()
     }
 
     pub fn inspection_ui(&self, ui: &mut egui::Ui) {
@@ -78,6 +78,18 @@ pub enum ForceIndex {
     Attached = 0,
     UserInteraction = 1,
     MAX = 2,
+}
+
+#[derive(Clone, Debug)]
+pub struct CSObjectStateHistory {
+    pub state: CSObjectState,
+    pub dt: f64,
+}
+
+impl CSObjectStateHistory {
+    pub fn new(state: CSObjectState, dt: f64) -> Self {
+        Self { state, dt }
+    }
 }
 
 #[derive(Clone, Debug)]

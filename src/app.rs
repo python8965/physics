@@ -1,9 +1,9 @@
 use egui::plot::{GridInput, GridMark, Legend, Plot};
 use egui::{ScrollArea, Slider, Widget};
 use nalgebra::Vector2;
-use std::cmp::Ordering;
-use std::ops::RangeBounds;
-use tracing::Instrument;
+
+
+
 
 use crate::app::audio::player::MusicPlayer;
 use crate::app::graphics::image::ImageManager;
@@ -141,6 +141,7 @@ impl eframe::App for State {
                 ui.label("Timeline");
                 let length = self.simulation_manager.timestep();
 
+                ui.spacing_mut().slider_width = (length as f32 / 2.0 + 100.0).clamp(100.0, 500.0);
                 if Slider::new(self.simulation_manager.current_timestep_mut(), 0..=length)
                     .ui(ui)
                     .dragged()
@@ -347,6 +348,8 @@ impl eframe::App for State {
                 generate_marks(step_sizes, grid_input.bounds)
             }
 
+            egui::warn_if_debug_build(ui);
+
             if let (Some(simulation), simulation_plot, state) =
                 self.simulation_manager.get_simulation()
             {
@@ -374,8 +377,6 @@ impl eframe::App for State {
 
                 simulation_plot.input(simulation, response);
             }
-
-            egui::warn_if_debug_build(ui);
         });
 
         ctx.request_repaint();

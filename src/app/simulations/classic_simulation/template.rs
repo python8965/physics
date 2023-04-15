@@ -1,6 +1,6 @@
 use egui::plot::{Line, PlotPoints};
-use nalgebra::{vector, Vector2};
-use std::ops::{Index, IndexMut};
+use nalgebra::{Vector2};
+use std::ops::{IndexMut};
 
 use crate::app::graphics::define::PlotDrawItem;
 use crate::app::graphics::CSPlotObjects;
@@ -152,7 +152,7 @@ fn circle_sim() -> CSPreset {
 
                 ..CSObjectState::default()
             },
-            attached: Some(|obj, dt| {
+            attached: Some(|obj, _dt| {
                 let _ = std::mem::replace(obj.acc_list.index_mut(ForceIndex::Attached as usize), {
                     let mut vector = obj.velocity.yx();
                     vector.y *= -1.0;

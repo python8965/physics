@@ -2,7 +2,7 @@ use crate::app::graphics::plot::CSPlot;
 use crate::app::simulations::classic_simulation::{
     ClassicSimulation, GlobalForceSlot, Simulation, GRAVITY, ZERO_FORCE,
 };
-use crate::app::{manager, Float};
+use crate::app::{Float};
 use egui::Ui;
 use instant::Instant;
 

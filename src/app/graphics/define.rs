@@ -1,10 +1,7 @@
 use std::fmt::{Debug, Formatter};
 
 use eframe::epaint::Color32;
-use egui::plot::{
-    Arrows, Line, PlotImage, PlotUi, Polygon, Text,
-};
-
+use egui::plot::{Arrows, Line, PlotImage, PlotUi, Polygon, Text};
 
 pub mod items;
 

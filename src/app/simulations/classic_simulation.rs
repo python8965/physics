@@ -5,8 +5,9 @@ pub mod template;
 use crate::app::{Float, NVec2};
 use egui::Ui;
 use nalgebra::{vector, SMatrix};
-use tracing::info;
 
+
+use crate::app::simulations::classic_simulation::object::CSObjectStateHistory;
 pub use object::CSObject;
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
@@ -48,7 +49,9 @@ impl From<Vec<CSObject>> for ClassicSimulation {
 impl Simulation for ClassicSimulation {
     fn step(&mut self, dt: f64) {
         for child in &mut self.objects {
-            child.state_history.push(child.state.clone());
+            child
+                .state_history
+                .push(CSObjectStateHistory::new(child.state.clone(), dt));
 
             if let Some(attached_fn) = &child.attached {
                 attached_fn(&mut child.state, dt);
@@ -81,6 +84,9 @@ impl Simulation for ClassicSimulation {
 //noinspection ALL
 #[allow(non_snake_case)]
 fn physics_system(Δt: Float, obj: &mut CSObject, global_acc: NVec2) {
+    let last_obj_state = obj.state_history.last().unwrap().state.clone();
+    let last_dt = obj.state_history.last().unwrap().dt;
+
     obj.state.position = {
         // ΣF
         // ΣF = ma
@@ -88,15 +94,19 @@ fn physics_system(Δt: Float, obj: &mut CSObject, global_acc: NVec2) {
         // Δv = a * Δt
         // Δp = ΣF * Δt
         // Δs = v * Δt
+        let current_acc = obj.state.acceleration();
 
-        let Σa = obj.state.acceleration() + global_acc; // Σa
+        let Σa = current_acc + global_acc; // Σa
+        let Δa = current_acc - last_obj_state.acceleration();
 
         let Δv = Σa * Δt; // 등가속도 운동에서의 보정.
+        let Δv_error = (Δa * last_dt) / 2.0;
+        let Δv = Δv + Δv_error;
 
         let v = obj.state.velocity;
 
         let Δs = v * Δt;
-        let Δs_error = (Δv * Δt) / 2.0; // 등가속도 운동에서의 보정.
+        let Δs_error = (Δv * last_dt) / 2.0; // 등가속도 운동에서의 보정.
         let Δs = Δs + Δs_error;
         // Δs = v * Δt
 
