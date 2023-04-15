@@ -1,8 +1,7 @@
 use egui::plot::{Line, PlotPoints};
-use nalgebra::{Vector2};
-use std::ops::{IndexMut};
+use nalgebra::Vector2;
+use std::ops::IndexMut;
 
-use crate::app::graphics::define::PlotDrawItem;
 use crate::app::graphics::CSPlotObjects;
 use crate::app::simulations::classic_simulation::object::{CSObjectState, ForceIndex};
 use crate::app::simulations::classic_simulation::template::init::{
@@ -11,7 +10,7 @@ use crate::app::simulations::classic_simulation::template::init::{
 use crate::app::simulations::classic_simulation::template::stamp::{
     CSObjectStamp, CSObjectStampResult,
 };
-use crate::app::simulations::classic_simulation::CSObject;
+use crate::app::simulations::classic_simulation::CSimObject;
 use crate::app::NVec2;
 
 pub mod init;
@@ -77,7 +76,7 @@ pub fn get_sim_list() -> [CSTemplate; 3] {
 }
 
 pub struct CSPreset {
-    pub simulation_objects: Vec<CSObject>,
+    pub simulation_objects: Vec<CSimObject>,
     pub plot_objects: CSPlotObjects,
 }
 
@@ -101,13 +100,13 @@ fn default_sim(data: BasicSimInit) -> CSPreset {
             let velocity = obj.theta.to_radians().sin_cos();
             let velocity = Vector2::new(velocity.0, velocity.1) * obj.start_velocity_mul;
 
-            let a = CSObject {
+            let a = CSimObject {
                 state: CSObjectState {
                     velocity,
                     mass: obj.mass,
                     ..CSObjectState::default()
                 },
-                ..CSObject::default()
+                ..CSimObject::default()
             };
 
             a
@@ -143,7 +142,7 @@ fn circle_sim() -> CSPreset {
 
     let sim = vec![5.0]
         .iter()
-        .map(|x| CSObject {
+        .map(|x| CSimObject {
             state: CSObjectState {
                 velocity: NVec2::new(*x, *x),
 
@@ -159,7 +158,7 @@ fn circle_sim() -> CSPreset {
                     vector
                 });
             }),
-            ..CSObject::default()
+            ..CSimObject::default()
         })
         .collect::<Vec<_>>();
 
@@ -175,7 +174,7 @@ fn projectile_motion_sim() -> CSPreset {
 
     let sim = vec![2.0, 8.0, 20.0, 30.0, 40.0, 60.0, 100.0]
         .iter()
-        .map(|x| CSObject {
+        .map(|x| CSimObject {
             state: CSObjectState {
                 velocity: NVec2::new(*x, *x),
 
@@ -183,14 +182,16 @@ fn projectile_motion_sim() -> CSPreset {
                 position: NVec2::new(1.0, 0.0),
                 ..CSObjectState::default()
             },
-            ..CSObject::default()
+            ..CSimObject::default()
         })
         .collect::<Vec<_>>();
 
     let plot_objects = CSPlotObjects::default().add_static_item(|| {
-        vec![PlotDrawItem::Line(Line::new(
-            PlotPoints::from_explicit_callback(|x| x * x, 0.0..=50.0, 50),
-        ))]
+        vec![Box::new(Line::new(PlotPoints::from_explicit_callback(
+            |x| x * x,
+            0.0..=50.0,
+            50,
+        )))]
     });
 
     CSPreset {

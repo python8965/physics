@@ -1,22 +1,14 @@
-use crate::app::graphics::define::PlotDrawItem;
+use crate::app::graphics::define::BoxedPlotDraw;
 use crate::app::simulations::classic_simulation::template::stamp::CSObjectStamp;
 
+#[derive(Debug, Clone, Default)]
 pub struct CSPlotObjects {
-    pub static_item_func: Vec<fn() -> Vec<PlotDrawItem>>,
+    pub static_item_func: Vec<fn() -> Vec<BoxedPlotDraw>>,
     pub stamps: Vec<CSObjectStamp>,
 }
 
-impl Default for CSPlotObjects {
-    fn default() -> Self {
-        Self {
-            static_item_func: vec![],
-            stamps: vec![],
-        }
-    }
-}
-
 impl CSPlotObjects {
-    pub fn add_static_item(mut self, item: fn() -> Vec<PlotDrawItem>) -> Self {
+    pub fn add_static_item(mut self, item: fn() -> Vec<BoxedPlotDraw>) -> Self {
         self.static_item_func.push(item);
         self
     }
@@ -26,7 +18,7 @@ impl CSPlotObjects {
         self
     }
 
-    pub fn get_plot_items(&self) -> Vec<PlotDrawItem> {
+    pub fn get_plot_items(&self) -> Vec<BoxedPlotDraw> {
         self.static_item_func.iter().fold(vec![], |mut acc, func| {
             acc.extend(func());
             acc

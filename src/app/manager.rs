@@ -1,31 +1,24 @@
-use crate::app::graphics::plot::CSPlot;
-use crate::app::simulations::classic_simulation::{
-    ClassicSimulation, GlobalForceSlot, Simulation, GRAVITY, ZERO_FORCE,
-};
-use crate::app::{Float};
+use crate::app::graphics::plot::SimPlot;
+
+use crate::app::simulations::classic_simulation::state::CSimSettings;
+use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation};
+use crate::app::Float;
 use egui::Ui;
 use instant::Instant;
 
-use crate::app::simulations::classic_simulation::state::{CSimState, PlotViewFilter};
 use crate::app::simulations::classic_simulation::template::init::SimulationInit;
 use crate::app::simulations::classic_simulation::template::{CSPreset, CSTemplate};
+use crate::app::simulations::state::{SimulationSettings, SimulationState};
 
 /// This is the main simulation manager. It is responsible for managing the simulation and the plot.
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
-
-    sim_state: CSimState,
-
+    sim_state: SimulationState,
     timestep: Vec<f32>,
-
-    simulation_plot: CSPlot,
-
+    simulation_plot: SimPlot,
     is_paused: bool,
-
     last_time_stamp: Instant,
-
     is_sim_initializing: bool,
-
     initializing_data: Option<Box<dyn SimulationInit>>,
 }
 
@@ -33,9 +26,9 @@ impl Default for SimulationManager {
     fn default() -> Self {
         Self {
             simulation: None,
-            sim_state: CSimState::default(),
+            sim_state: SimulationState::default(),
             timestep: vec![],
-            simulation_plot: CSPlot::default(),
+            simulation_plot: SimPlot::default(),
             is_paused: true,
             last_time_stamp: Instant::now(),
             is_sim_initializing: false,
@@ -48,10 +41,6 @@ impl Default for SimulationManager {
 impl SimulationManager {
     pub fn time_multiplier(&mut self) -> &mut f64 {
         &mut self.sim_state.time_mul
-    }
-
-    pub fn settings_mut(&mut self) -> &mut PlotViewFilter {
-        &mut self.sim_state.settings
     }
 
     pub fn get_time(&self) -> f64 {
@@ -91,12 +80,9 @@ impl SimulationManager {
         }
 
         self.pause();
-        self.simulation_plot = CSPlot::new(plot_objects);
-        let mut simulation: Box<dyn Simulation> =
-            Box::new(ClassicSimulation::from(simulation_objects));
-
-        set_global_gravity(self.sim_state.gravity, &mut simulation);
-
+        self.simulation_plot = SimPlot::new(plot_objects);
+        let simulation: Box<dyn Simulation> = Box::new(ClassicSimulation::from(simulation_objects));
+        self.sim_state.settings = SimulationSettings::CSimSettings(CSimSettings::default());
         self.simulation.replace(simulation);
 
         self.sim_state.reset();
@@ -107,8 +93,8 @@ impl SimulationManager {
         &mut self,
     ) -> (
         &mut Option<Box<dyn Simulation>>,
-        &mut CSPlot,
-        &mut CSimState,
+        &mut SimPlot,
+        &mut SimulationState,
     ) {
         (
             &mut self.simulation,
@@ -124,10 +110,9 @@ impl SimulationManager {
     pub(super) fn resume(&mut self) {
         if self.is_sim_initializing {
             self.is_sim_initializing = false;
+
             if let Some(simulation) = self.simulation.as_mut() {
-                simulation.get_children().iter_mut().for_each(|obj| {
-                    obj.init();
-                });
+                simulation.init();
             }
         }
 
@@ -149,18 +134,12 @@ impl SimulationManager {
         if !self.timestep.is_empty() {
             self.sim_state.time = self.timestep[self.sim_state.current_step] as f64;
 
-            for obj in self.simulation.as_mut().unwrap().get_children() {
-                obj.state = obj.state_at_step(self.sim_state.current_step);
-            }
+            self.simulation
+                .as_mut()
+                .unwrap()
+                .at_time_step(self.sim_state.current_step);
         }
     }
-}
-
-pub fn set_global_gravity(toggle: bool, simulation: &mut Box<dyn Simulation>) {
-    simulation.set_global_force(
-        GlobalForceSlot::Gravity,
-        if toggle { GRAVITY } else { ZERO_FORCE },
-    );
 }
 
 /// for ui
@@ -172,16 +151,7 @@ impl SimulationManager {
     }
 
     pub fn settings_ui(&mut self, ui: &mut Ui) {
-        ui.collapsing("Simulation Settings", |ui| {
-            if ui
-                .checkbox(&mut self.sim_state.gravity, "Gravity?")
-                .changed()
-            {
-                if let Some(simulation) = self.simulation.as_mut() {
-                    set_global_gravity(self.sim_state.gravity, simulation);
-                }
-            };
-        });
+        self.sim_state.settings.ui(ui);
     }
 
     pub fn inspection_ui(&mut self, ui: &mut Ui) {
@@ -207,7 +177,7 @@ impl SimulationManager {
                 self.sim_state.current_step = self.sim_state.max_step;
                 self.timestep.push(self.sim_state.time as f32);
 
-                simulation.step(dt as Float);
+                simulation.step(dt as Float, &mut self.sim_state);
             }
 
             self.sim_state.time += dt;
@@ -223,10 +193,8 @@ impl SimulationManager {
                     .to_simulation_type()
                     .get_preset_with_ui();
 
-                let _ = std::mem::replace(
-                    self.simulation.as_mut().unwrap().get_children(),
-                    simulation_objects,
-                );
+                self.simulation = Some(Box::new(ClassicSimulation::from(simulation_objects)));
+
                 self.simulation_plot.plot_objects = plot_objects;
             }
 

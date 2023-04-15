@@ -3,12 +3,17 @@ pub mod state;
 pub mod template;
 
 use crate::app::{Float, NVec2};
-use egui::Ui;
+use egui::plot::PlotPoint;
+use egui::{Response, Ui};
 use nalgebra::{vector, SMatrix};
 
+use crate::app::graphics::plot::PlotData;
+use crate::app::simulations::classic_simulation::object::drawing::get_object_mesh;
+use crate::app::simulations::classic_simulation::object::{CSObjectStateHistory, ForceIndex};
 
-use crate::app::simulations::classic_simulation::object::CSObjectStateHistory;
-pub use object::CSObject;
+use crate::app::simulations::polygon::is_inside;
+use crate::app::simulations::state::SimulationState;
+pub use object::CSimObject;
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
 pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];
@@ -20,11 +25,15 @@ pub enum GlobalForceSlot {
 }
 
 pub trait Simulation: Send + Sync {
-    fn step(&mut self, dt: Float);
+    fn step(&mut self, dt: Float, state: &mut SimulationState);
 
-    fn get_children(&mut self) -> &mut Vec<CSObject>;
+    fn at_time_step(&mut self, step: usize);
 
-    fn set_global_force(&mut self, index: GlobalForceSlot, force: NVec2);
+    fn get_children(&self) -> &Vec<CSimObject>;
+
+    fn input(&mut self, plot: &mut PlotData, pointer_pos: PlotPoint, response: egui::Response);
+
+    fn init(&mut self);
 
     fn inspection_ui(&mut self, ui: &mut egui::Ui) {
         ui.label("No inspection UI");
@@ -33,12 +42,12 @@ pub trait Simulation: Send + Sync {
 
 #[derive()]
 pub struct ClassicSimulation {
-    pub objects: Vec<CSObject>,
+    pub objects: Vec<CSimObject>,
     pub global_acc_list: Vec<NVec2>,
 }
 
-impl From<Vec<CSObject>> for ClassicSimulation {
-    fn from(object: Vec<CSObject>) -> Self {
+impl From<Vec<CSimObject>> for ClassicSimulation {
+    fn from(object: Vec<CSimObject>) -> Self {
         ClassicSimulation {
             objects: object,
             global_acc_list: vec![GRAVITY],
@@ -47,8 +56,20 @@ impl From<Vec<CSObject>> for ClassicSimulation {
 }
 
 impl Simulation for ClassicSimulation {
-    fn step(&mut self, dt: f64) {
+    fn step(&mut self, dt: f64, state: &mut SimulationState) {
+        if let Some(settings) = state.settings.as_c_sim_settings_mut() {
+            if let Some(is_grav) = settings.gravity.get() {
+                if is_grav {
+                    self.global_acc_list[GlobalForceSlot::Gravity as usize] = GRAVITY;
+                } else {
+                    self.global_acc_list[GlobalForceSlot::Gravity as usize] = ZERO_FORCE;
+                }
+            }
+        }
+
         for child in &mut self.objects {
+            child.update(dt, state);
+
             child
                 .state_history
                 .push(CSObjectStateHistory::new(child.state.clone(), dt));
@@ -61,12 +82,58 @@ impl Simulation for ClassicSimulation {
         }
     }
 
-    fn get_children(&mut self) -> &mut Vec<CSObject> {
-        &mut self.objects
+    fn at_time_step(&mut self, step: usize) {
+        for obj in self.objects.iter_mut() {
+            obj.state = obj.state_at_step(step);
+        }
     }
 
-    fn set_global_force(&mut self, index: GlobalForceSlot, force: NVec2) {
-        self.global_acc_list[index as usize] = force;
+    fn get_children(&self) -> &Vec<CSimObject> {
+        &self.objects
+    }
+
+    fn input(&mut self, plot: &mut PlotData, pointer_pos: PlotPoint, response: Response) {
+        let simulation_objects = &mut self.objects;
+        if response.clicked() {
+            for (index, obj) in simulation_objects.iter().enumerate() {
+                if is_inside(pointer_pos, get_object_mesh(obj).points()) {
+                    plot.selected_index = index;
+                    break;
+                }
+            }
+        }
+
+        if response.drag_started() {
+            for (index, obj) in simulation_objects.iter().enumerate() {
+                if is_inside(pointer_pos, get_object_mesh(obj).points()) {
+                    plot.selected_index = index;
+                    plot.dragging_object = true;
+                    break;
+                }
+            }
+        }
+
+        if response.dragged() && plot.dragging_object {
+            let pos = simulation_objects[plot.selected_index].state.position;
+            let selected = &mut simulation_objects[plot.selected_index];
+
+            selected.state.acc_list[ForceIndex::UserInteraction as usize] =
+                vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
+        }
+
+        if !response.dragged() && plot.dragging_object {
+            let selected = &mut simulation_objects[plot.selected_index];
+
+            selected.state.acc_list[ForceIndex::UserInteraction as usize] = ZERO_FORCE;
+
+            plot.dragging_object = false;
+        }
+    }
+
+    fn init(&mut self) {
+        self.objects.iter_mut().for_each(|obj| {
+            obj.init();
+        });
     }
 
     fn inspection_ui(&mut self, ui: &mut Ui) {
@@ -83,7 +150,7 @@ impl Simulation for ClassicSimulation {
 
 //noinspection ALL
 #[allow(non_snake_case)]
-fn physics_system(Δt: Float, obj: &mut CSObject, global_acc: NVec2) {
+fn physics_system(Δt: Float, obj: &mut CSimObject, global_acc: NVec2) {
     let last_obj_state = obj.state_history.last().unwrap().state.clone();
     let last_dt = obj.state_history.last().unwrap().dt;
 

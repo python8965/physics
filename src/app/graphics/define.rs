@@ -1,7 +1,7 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug};
 
 use eframe::epaint::Color32;
-use egui::plot::{Arrows, Line, PlotImage, PlotUi, Polygon, Text};
+use egui::plot::{Arrows, Line, PlotImage, PlotUi, Points, Polygon, Text};
 
 pub mod items;
 
@@ -55,48 +55,82 @@ impl PlotTextSize {
     }
 }
 
-pub enum PlotDrawItem {
-    Polygon(Polygon),
-    Arrows(Arrows), // Arrows with debug text
-    Line(Line),
-    Text(Text),
-    Image(PlotImage),
+pub type BoxedPlotDraw = Box<dyn PlotDraw>;
+
+pub trait PlotDraw {
+    fn draw(self: Box<Self>, plot_ui: &mut PlotUi);
 }
 
-unsafe impl Send for PlotDrawItem {}
-
-unsafe impl Sync for PlotDrawItem {}
-
-impl Debug for PlotDrawItem {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            PlotDrawItem::Polygon(_) => "DrawShape",
-            PlotDrawItem::Arrows(_) => "Arrow",
-            PlotDrawItem::Text(_) => "Text",
-            PlotDrawItem::Line(_) => "Line",
-            PlotDrawItem::Image(_) => "Image",
-        })
+impl PlotDraw for Points {
+    fn draw(self: Box<Self>, plot_ui: &mut PlotUi) {
+        plot_ui.points(*self);
     }
 }
 
-impl PlotDrawItem {
-    pub(crate) fn draw(self, plot_ui: &mut PlotUi) {
-        match self {
-            PlotDrawItem::Polygon(polygon) => {
-                plot_ui.polygon(polygon);
-            }
-            PlotDrawItem::Arrows(arrows) => {
-                plot_ui.arrows(arrows);
-            }
-            PlotDrawItem::Text(text) => {
-                plot_ui.text(text);
-            }
-            PlotDrawItem::Line(line) => {
-                plot_ui.line(line);
-            }
-            PlotDrawItem::Image(image) => {
-                plot_ui.image(image);
-            }
-        }
+impl PlotDraw for Polygon {
+    fn draw(self: Box<Self>, plot_ui: &mut PlotUi) {
+        plot_ui.polygon(*self);
+    }
+}
+
+impl PlotDraw for Arrows {
+    fn draw(self: Box<Self>, plot_ui: &mut PlotUi) {
+        plot_ui.arrows(*self);
+    }
+}
+
+impl PlotDraw for Line {
+    fn draw(self: Box<Self>, plot_ui: &mut PlotUi) {
+        plot_ui.line(*self);
+    }
+}
+
+impl PlotDraw for Text {
+    fn draw(self: Box<Self>, plot_ui: &mut PlotUi) {
+        plot_ui.text(*self);
+    }
+}
+impl PlotDraw for PlotImage {
+    fn draw(self: Box<Self>, plot_ui: &mut PlotUi) {
+        plot_ui.image(*self);
+    }
+}
+
+pub trait PlotDrawHelper {
+    fn draw(self, plot_ui: &mut PlotUi);
+}
+
+impl PlotDrawHelper for Points {
+    fn draw(self, plot_ui: &mut PlotUi) {
+        plot_ui.points(self);
+    }
+}
+
+impl PlotDrawHelper for Polygon {
+    fn draw(self, plot_ui: &mut PlotUi) {
+        plot_ui.polygon(self);
+    }
+}
+
+impl PlotDrawHelper for Arrows {
+    fn draw(self, plot_ui: &mut PlotUi) {
+        plot_ui.arrows(self);
+    }
+}
+
+impl PlotDrawHelper for Line {
+    fn draw(self, plot_ui: &mut PlotUi) {
+        plot_ui.line(self);
+    }
+}
+
+impl PlotDrawHelper for Text {
+    fn draw(self, plot_ui: &mut PlotUi) {
+        plot_ui.text(self);
+    }
+}
+impl PlotDrawHelper for PlotImage {
+    fn draw(self, plot_ui: &mut PlotUi) {
+        plot_ui.image(self);
     }
 }

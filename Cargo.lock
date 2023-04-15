@@ -1773,6 +1773,7 @@ dependencies = [
  "image",
  "instant",
  "nalgebra",
+ "paste",
  "puffin",
  "puffin_egui",
  "rodio",

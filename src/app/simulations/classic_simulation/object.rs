@@ -1,14 +1,16 @@
-use crate::app::graphics::define::DrawShapeType;
+pub mod drawing;
+
+use crate::app::graphics::define::{DrawShapeType};
 use std::fmt::Debug;
 
-use crate::app::graphics::plot::ObjectTraceLine;
-use crate::app::NVec2;
+use crate::app::graphics::plot::{ObjectTraceLine};
 
+use crate::app::NVec2;
 
 pub type AttachedFn = fn(&mut CSObjectState, f64);
 
 #[derive(Clone)]
-pub struct CSObject {
+pub struct CSimObject {
     pub state: CSObjectState,
 
     pub state_history: Vec<CSObjectStateHistory>,
@@ -22,7 +24,7 @@ pub struct CSObject {
     pub attached: Option<AttachedFn>,
 }
 
-impl Default for CSObject {
+impl Default for CSimObject {
     fn default() -> Self {
         Self {
             state: Default::default(),
@@ -35,7 +37,7 @@ impl Default for CSObject {
     }
 }
 
-impl CSObject {
+impl CSimObject {
     pub fn init(&mut self) {
         self.init_state = self.state.clone();
     }

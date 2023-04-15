@@ -2,15 +2,12 @@ use egui::plot::{GridInput, GridMark, Legend, Plot};
 use egui::{ScrollArea, Slider, Widget};
 use nalgebra::Vector2;
 
-
-
-
 use crate::app::audio::player::MusicPlayer;
 use crate::app::graphics::image::ImageManager;
 use crate::app::manager::SimulationManager;
-use crate::app::simulations::classic_simulation::state::update_simulation_state;
 use crate::app::simulations::classic_simulation::template::get_sim_list;
 use crate::app::util::FrameHistory;
+
 
 mod audio;
 mod graphics;
@@ -202,29 +199,6 @@ impl eframe::App for State {
                         });
 
                         ui.separator();
-                        ui.collapsing("Drawing Filter", |ui| {
-                            ui.checkbox(&mut self.simulation_manager.settings_mut().text, "text");
-                            ui.checkbox(
-                                &mut self.simulation_manager.settings_mut().acceleration,
-                                "acceleration",
-                            );
-                            ui.checkbox(
-                                &mut self.simulation_manager.settings_mut().velocity,
-                                "velocity",
-                            );
-                            ui.checkbox(
-                                &mut self.simulation_manager.settings_mut().sigma_force,
-                                "sigma_force",
-                            );
-                            ui.checkbox(&mut self.simulation_manager.settings_mut().trace, "trace");
-                            ui.checkbox(
-                                &mut self.simulation_manager.settings_mut().equation,
-                                "equation",
-                            );
-                            ui.checkbox(&mut self.simulation_manager.settings_mut().stamp, "stamp");
-                        });
-
-                        ui.separator();
 
                         ui.label(format!("fps : {:.0?}", self.frame_history.fps()));
 
@@ -369,7 +343,7 @@ impl eframe::App for State {
                 }
 
                 let response = plot.show(ui, |plot_ui| {
-                    update_simulation_state(state, plot_ui);
+                    state.update_simulation_state(plot_ui);
                     simulation_plot.draw(simulation, plot_ui, state);
 
                     plot_ui.pointer_coordinate()

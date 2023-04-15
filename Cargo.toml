@@ -25,6 +25,7 @@ ehttp = "0.2.0"
 # language
 tracing = "0.1.37"
 anyhow = "1.0.69"
+paste = "1.0.12"
 
 # math
 nalgebra = "0.32.1"
