@@ -4,7 +4,7 @@ use crate::app::simulations::classic_simulation::object::CSObjectState;
 
 use crate::app::simulations::classic_simulation::template::stamp::CSObjectStamp;
 use crate::app::simulations::classic_simulation::CSimObject;
-use crate::app::simulations::state::{SimulationState};
+use crate::app::simulations::state::SimulationState;
 use crate::app::NVec2;
 use egui::plot::{Arrows, PlotPoint, PlotPoints, Points, Text};
 use egui::{Align2, RichText};
@@ -87,7 +87,7 @@ fn get_info_vector(
 
 impl CSimObject {
     pub fn update(&mut self, _dt: f64, sim_state: &SimulationState) {
-        self.trace_line.update(self.state.position, sim_state.time);
+        self.trace_line.update(self.state.position);
     }
 
     pub fn draw(
@@ -259,7 +259,9 @@ impl CSimObject {
             let trace_line = &self.trace_line;
 
             if filter.trace {
-                items.push(Box::new(trace_line.line()));
+                items.push(Box::new(
+                    trace_line.line(sim_state.current_step, self.init_timestep),
+                ));
             }
         }
 

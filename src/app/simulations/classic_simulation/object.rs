@@ -1,9 +1,9 @@
 pub mod drawing;
 
-use crate::app::graphics::define::{DrawShapeType};
+use crate::app::graphics::define::DrawShapeType;
 use std::fmt::Debug;
 
-use crate::app::graphics::plot::{ObjectTraceLine};
+use crate::app::graphics::plot::ObjectTraceLine;
 
 use crate::app::NVec2;
 
@@ -15,11 +15,13 @@ pub struct CSimObject {
 
     pub state_history: Vec<CSObjectStateHistory>,
 
-    pub(super) init_state: CSObjectState,
-
     pub trace_line: ObjectTraceLine,
 
+    pub init_timestep: usize,
+
     pub shape: DrawShapeType,
+
+    pub hide: bool,
 
     pub attached: Option<AttachedFn>,
 }
@@ -29,25 +31,40 @@ impl Default for CSimObject {
         Self {
             state: Default::default(),
             state_history: vec![],
-            init_state: Default::default(),
             trace_line: ObjectTraceLine::new(),
+            init_timestep: 0,
             shape: DrawShapeType::Circle,
+            hide: false,
             attached: None,
         }
     }
 }
 
 impl CSimObject {
-    pub fn init(&mut self) {
-        self.init_state = self.state.clone();
+    pub fn init_state(&self) -> CSObjectState {
+        if let Some(state) = self.state_history.first() {
+            state.state.clone()
+        } else {
+            self.state.clone()
+        }
     }
 
-    pub fn init_state(&self) -> &CSObjectState {
-        &self.init_state
-    }
+    pub fn state_at_timestep(&self, current_timestep: usize) -> Option<CSObjectState> {
+        let current_timestep = if current_timestep != 0 {
+            current_timestep - 1
+        } else {
+            current_timestep
+        };
 
-    pub fn state_at_step(&self, step: usize) -> CSObjectState {
-        self.state_history[step].state.clone()
+        if self.init_timestep <= current_timestep {
+            Some(
+                self.state_history[current_timestep - self.init_timestep]
+                    .state
+                    .clone(),
+            )
+        } else {
+            None
+        }
     }
 
     pub fn inspection_ui(&self, ui: &mut egui::Ui) {

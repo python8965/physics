@@ -4,10 +4,10 @@ use nalgebra::Vector2;
 
 use crate::app::audio::player::MusicPlayer;
 use crate::app::graphics::image::ImageManager;
+use crate::app::graphics::plot::InputMessage;
 use crate::app::manager::SimulationManager;
 use crate::app::simulations::classic_simulation::template::get_sim_list;
 use crate::app::util::FrameHistory;
-
 
 mod audio;
 mod graphics;
@@ -132,6 +132,10 @@ impl eframe::App for State {
                 });
             });
         }
+
+        egui::TopBottomPanel::top("Top Panel").show(ctx, |ui| {
+            self.simulation_manager.operation_ui(ui);
+        });
 
         egui::TopBottomPanel::bottom("Bottom Panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -346,10 +350,14 @@ impl eframe::App for State {
                     state.update_simulation_state(plot_ui);
                     simulation_plot.draw(simulation, plot_ui, state);
 
-                    plot_ui.pointer_coordinate()
+                    InputMessage {
+                        clicked: plot_ui.plot_clicked(),
+                        hovered: plot_ui.plot_hovered(),
+                        pointer_pos: plot_ui.pointer_coordinate(),
+                    }
                 });
 
-                simulation_plot.input(simulation, response);
+                simulation_plot.input(simulation, response, ui.ctx(), state);
             }
         });
 

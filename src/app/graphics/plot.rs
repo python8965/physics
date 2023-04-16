@@ -1,9 +1,12 @@
 use eframe::epaint::FontFamily;
+use std::cmp::min;
 
 use egui::plot::{Line, PlotBounds, PlotPoint, PlotUi, Polygon, Text};
 use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
 
+use nalgebra::max;
 use std::fmt::Debug;
+use tracing::info;
 
 use crate::app::graphics::define::{PlotColor, PlotDrawHelper};
 use crate::app::graphics::CSPlotObjects;
@@ -35,19 +38,11 @@ impl Default for PlotData {
     }
 }
 
+#[derive(Default)]
 pub struct SimPlot {
     pub plot_objects: CSPlotObjects,
 
     plot_data: PlotData,
-}
-
-impl Default for SimPlot {
-    fn default() -> Self {
-        Self {
-            plot_objects: CSPlotObjects::default(),
-            plot_data: PlotData::default(),
-        }
-    }
 }
 
 impl SimPlot {
@@ -80,6 +75,10 @@ impl SimPlot {
 
         // 시뮬레이션 오브젝트 그리기
         for (index, obj) in simulation_objects.iter().enumerate() {
+            if obj.hide {
+                continue;
+            }
+
             plot_ui
                 .polygon(Polygon::new(get_object_mesh(obj)).color(PlotColor::Object.get_color()));
 
@@ -110,6 +109,12 @@ impl SimPlot {
     }
 }
 
+pub struct InputMessage {
+    pub clicked: bool,
+    pub hovered: bool,
+    pub pointer_pos: Option<PlotPoint>,
+}
+
 impl SimPlot {
     pub fn new(plot_objects: CSPlotObjects) -> Self {
         Self {
@@ -126,13 +131,19 @@ impl SimPlot {
     pub fn input(
         &mut self,
         simulation: &mut Box<dyn Simulation>,
-        inner_response: InnerResponse<Option<PlotPoint>>,
+        inner_response: InnerResponse<InputMessage>,
+        ctx: &egui::Context,
+        state: &mut SimulationState,
     ) {
         let response = inner_response.response;
 
-        if let Some(pointer_pos) = inner_response.inner {
-            simulation.input(&mut self.plot_data, pointer_pos, response);
-        }
+        simulation.input(
+            &mut self.plot_data,
+            inner_response.inner,
+            response,
+            ctx,
+            state,
+        );
     }
 
     // 시뮬레이션 오브젝트를 그린다.
@@ -153,37 +164,39 @@ impl SimPlot {
 pub struct ObjectTraceLine {
     data: Vec<[f64; 2]>,
     last_pos: NVec2,
-    last_time: f64,
+    start_timestep: usize,
 }
 
 impl ObjectTraceLine {
-    const MIN_TIME: f64 = 0.0125;
     const MAX_DISTANCE: f64 = 225.0;
-    const MAX_TRACE_LENGTH: usize = 1000;
+    const MAX_TRACE_LENGTH: usize = 500;
 
     pub(crate) fn new() -> Self {
         Self {
             data: vec![],
             last_pos: NVec2::new(0.0, 0.0),
-            last_time: -Self::MIN_TIME * 2.0,
+            start_timestep: 0,
         }
     }
 
-    pub(crate) fn update(&mut self, pos: NVec2, current_time: f64) {
-        let time = current_time;
-
-        if (time - self.last_time) > Self::MIN_TIME {
-            if self.data.len() > Self::MAX_TRACE_LENGTH {
-                self.data.remove(0);
-            }
-            self.data.push([pos.x, pos.y]);
-            self.last_pos = pos;
-            self.last_time = time;
-        }
+    pub(crate) fn update(&mut self, pos: NVec2) {
+        self.data.push([pos.x, pos.y]);
     }
 
-    pub(crate) fn line(&self) -> Line {
-        Line::new(self.data.clone())
+    pub(crate) fn line(&self, current_timestep: usize, init_timestep: usize) -> Line {
+        let line_len = current_timestep
+            .saturating_sub(init_timestep)
+            .clamp(0, Self::MAX_TRACE_LENGTH);
+
+        let data_len = self.data.len();
+
+        let index_end = current_timestep
+            .saturating_sub(init_timestep)
+            .clamp(0, data_len);
+
+        let index_start = index_end.saturating_sub(line_len);
+
+        Line::new(self.data.clone()[index_start..index_end].to_vec())
             .color(PlotColor::TraceLine.get_color())
             .name("trace line")
     }

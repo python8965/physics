@@ -150,6 +150,12 @@ impl SimulationManager {
         }
     }
 
+    pub fn operation_ui(&mut self, ui: &mut Ui) {
+        if let Some(simulation) = self.simulation.as_mut() {
+            simulation.operation_ui(ui);
+        }
+    }
+
     pub fn settings_ui(&mut self, ui: &mut Ui) {
         self.sim_state.settings.ui(ui);
     }
