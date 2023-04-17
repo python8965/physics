@@ -1,12 +1,7 @@
 use eframe::epaint::FontFamily;
-use std::cmp::min;
 
 use egui::plot::{Line, PlotBounds, PlotPoint, PlotUi, Polygon, Text};
 use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
-
-use nalgebra::max;
-use std::fmt::Debug;
-use tracing::info;
 
 use crate::app::graphics::define::{PlotColor, PlotDrawHelper};
 use crate::app::graphics::CSPlotObjects;
@@ -14,7 +9,6 @@ use crate::app::simulations::classic_simulation::object::drawing::get_object_mes
 
 use crate::app::simulations::classic_simulation::{CSimObject, Simulation};
 use crate::app::simulations::state::SimulationState;
-use crate::app::NVec2;
 
 pub mod object;
 
@@ -45,6 +39,8 @@ pub struct SimPlot {
     plot_data: PlotData,
 }
 
+pub const PLOT_MAX_DISTANCE: f64 = 225.0;
+
 impl SimPlot {
     // 그래프를 그린다.
     pub fn draw(
@@ -54,7 +50,7 @@ impl SimPlot {
         state: &mut SimulationState,
     ) {
         self.plot_data.nearest_label = String::new();
-        self.plot_data.near_value = ObjectTraceLine::MAX_DISTANCE;
+        self.plot_data.near_value = PLOT_MAX_DISTANCE;
 
         if !state.sim_started {
             plot_ui.set_plot_bounds(PlotBounds::from_min_max([-100.0, -100.0], [100.0, 100.0]));
@@ -67,7 +63,7 @@ impl SimPlot {
         if let Some(pointer_pos) = plot_ui.pointer_coordinate() {
             if self.plot_data.dragging_object {
                 let pos = simulation_objects[self.plot_data.selected_index]
-                    .state
+                    .current_state()
                     .position;
                 Line::new(vec![[pos.x, pos.y], [pointer_pos.x, pointer_pos.y]]).draw(plot_ui);
             }
@@ -79,8 +75,13 @@ impl SimPlot {
                 continue;
             }
 
-            plot_ui
-                .polygon(Polygon::new(get_object_mesh(obj)).color(PlotColor::Object.get_color()));
+            plot_ui.polygon(
+                Polygon::new(get_object_mesh(
+                    obj.state_at_timestep(state.current_step),
+                    obj.shape,
+                ))
+                .color(PlotColor::Object.get_color()),
+            );
 
             self.draw_object(obj, state, plot_ui, index);
         }
@@ -157,47 +158,5 @@ impl SimPlot {
         obj.draw(sim_state, index, self.plot_objects.get_stamps())
             .into_iter()
             .for_each(|item| item.draw(plot_ui));
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ObjectTraceLine {
-    data: Vec<[f64; 2]>,
-    last_pos: NVec2,
-    start_timestep: usize,
-}
-
-impl ObjectTraceLine {
-    const MAX_DISTANCE: f64 = 225.0;
-    const MAX_TRACE_LENGTH: usize = 500;
-
-    pub(crate) fn new() -> Self {
-        Self {
-            data: vec![],
-            last_pos: NVec2::new(0.0, 0.0),
-            start_timestep: 0,
-        }
-    }
-
-    pub(crate) fn update(&mut self, pos: NVec2) {
-        self.data.push([pos.x, pos.y]);
-    }
-
-    pub(crate) fn line(&self, current_timestep: usize, init_timestep: usize) -> Line {
-        let line_len = current_timestep
-            .saturating_sub(init_timestep)
-            .clamp(0, Self::MAX_TRACE_LENGTH);
-
-        let data_len = self.data.len();
-
-        let index_end = current_timestep
-            .saturating_sub(init_timestep)
-            .clamp(0, data_len);
-
-        let index_start = index_end.saturating_sub(line_len);
-
-        Line::new(self.data.clone()[index_start..index_end].to_vec())
-            .color(PlotColor::TraceLine.get_color())
-            .name("trace line")
     }
 }

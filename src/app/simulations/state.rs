@@ -77,7 +77,7 @@ impl SimulationSettings {
 pub struct SimulationState {
     pub settings: SimulationSettings,
     pub(crate) pointer: Option<PlotPoint>,
-    pub(crate) time_mul: f64,
+    pub(crate) time_mul: usize,
     pub(crate) time: f64,
     pub(crate) current_step: usize,
     pub(crate) max_step: usize,
@@ -95,7 +95,7 @@ impl Default for SimulationState {
             max_step: 0,
             sim_started: false,
             zoom: 1.0,
-            time_mul: 1.0,
+            time_mul: 1,
         }
     }
 }

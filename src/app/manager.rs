@@ -2,7 +2,6 @@ use crate::app::graphics::plot::SimPlot;
 
 use crate::app::simulations::classic_simulation::state::CSimSettings;
 use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation};
-use crate::app::Float;
 use egui::Ui;
 use instant::Instant;
 
@@ -10,11 +9,12 @@ use crate::app::simulations::classic_simulation::template::init::SimulationInit;
 use crate::app::simulations::classic_simulation::template::{CSPreset, CSTemplate};
 use crate::app::simulations::state::{SimulationSettings, SimulationState};
 
+pub const SIMULATION_TICK: f64 = 1.0 / 240.0;
+
 /// This is the main simulation manager. It is responsible for managing the simulation and the plot.
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
     sim_state: SimulationState,
-    timestep: Vec<f32>,
     simulation_plot: SimPlot,
     is_paused: bool,
     last_time_stamp: Instant,
@@ -27,7 +27,6 @@ impl Default for SimulationManager {
         Self {
             simulation: None,
             sim_state: SimulationState::default(),
-            timestep: vec![],
             simulation_plot: SimPlot::default(),
             is_paused: true,
             last_time_stamp: Instant::now(),
@@ -39,7 +38,7 @@ impl Default for SimulationManager {
 
 /// simple getter and setter
 impl SimulationManager {
-    pub fn time_multiplier(&mut self) -> &mut f64 {
+    pub fn time_multiplier(&mut self) -> &mut usize {
         &mut self.sim_state.time_mul
     }
 
@@ -86,7 +85,6 @@ impl SimulationManager {
         self.simulation.replace(simulation);
 
         self.sim_state.reset();
-        self.timestep.clear();
     }
 
     pub fn get_simulation(
@@ -131,14 +129,12 @@ impl SimulationManager {
 
     pub fn timestep_changed(&mut self) {
         self.pause();
-        if !self.timestep.is_empty() {
-            self.sim_state.time = self.timestep[self.sim_state.current_step] as f64;
+        self.sim_state.time = SIMULATION_TICK * self.sim_state.current_step as f64;
 
-            self.simulation
-                .as_mut()
-                .unwrap()
-                .at_time_step(self.sim_state.current_step);
-        }
+        self.simulation
+            .as_mut()
+            .unwrap()
+            .at_time_step(self.sim_state.current_step);
     }
 }
 
@@ -169,24 +165,29 @@ impl SimulationManager {
         }
     }
 }
+
 /// for simulation tick
 impl SimulationManager {
+    pub fn simulation_step(&mut self) {
+        if let Some(simulation) = &mut self.simulation {
+            self.sim_state.max_step += 1;
+            self.sim_state.current_step = self.sim_state.max_step;
+
+            simulation.step(&mut self.sim_state);
+        }
+
+        self.sim_state.time += SIMULATION_TICK;
+    }
+
     pub fn step(&mut self) {
         if !self.is_paused && self.sim_state.sim_started {
-            let mut dt = self.last_time_stamp.elapsed().as_secs_f64();
+            //let mut dt = self.last_time_stamp.elapsed().as_secs_f64();
 
             self.last_time_stamp = Instant::now();
-            dt *= self.sim_state.time_mul;
 
-            if let Some(simulation) = &mut self.simulation {
-                self.sim_state.max_step = self.timestep.len();
-                self.sim_state.current_step = self.sim_state.max_step;
-                self.timestep.push(self.sim_state.time as f32);
-
-                simulation.step(dt as Float, &mut self.sim_state);
+            for _ in 0..self.sim_state.time_mul {
+                self.simulation_step();
             }
-
-            self.sim_state.time += dt;
         } else {
             if self.is_sim_initializing {
                 let CSPreset {

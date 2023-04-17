@@ -6,7 +6,7 @@ use crate::app::simulations::classic_simulation::template::stamp::CSObjectStamp;
 use crate::app::simulations::classic_simulation::CSimObject;
 use crate::app::simulations::state::SimulationState;
 use crate::app::NVec2;
-use egui::plot::{Arrows, PlotPoint, PlotPoints, Points, Text};
+use egui::plot::{Arrows, Line, PlotPoint, PlotPoints, Points, Text};
 use egui::{Align2, RichText};
 use std::f64::consts::TAU;
 use std::fmt::Debug;
@@ -26,31 +26,35 @@ fn get_sized_text(zoom: f64, text: String, scale: f64) -> RichText {
 }
 
 // 오브젝트 모양 점을 반환한다.
-pub fn get_object_mesh(obj: &CSimObject) -> PlotPoints {
-    let scale = obj.state.scale();
+pub fn get_object_mesh(obj: Option<CSObjectState>, shape: DrawShapeType) -> PlotPoints {
+    if let Some(state) = obj {
+        let scale = state.scale();
 
-    match obj.shape {
-        DrawShapeType::Circle => PlotPoints::from_parametric_callback(
-            move |t| {
-                (
-                    t.sin() * scale + obj.state.position.x,
-                    t.cos() * scale + obj.state.position.y,
-                )
-            },
-            0.0..TAU,
-            512,
-        ),
+        match shape {
+            DrawShapeType::Circle => PlotPoints::from_parametric_callback(
+                move |t| {
+                    (
+                        t.sin() * scale + state.position.x,
+                        t.cos() * scale + state.position.y,
+                    )
+                },
+                0.0..TAU,
+                512,
+            ),
 
-        DrawShapeType::Box => vec![
-            [obj.state.position.x - scale, obj.state.position.y - scale],
-            [obj.state.position.x - scale, obj.state.position.y + scale],
-            [obj.state.position.x + scale, obj.state.position.y + scale],
-            [obj.state.position.x + scale, obj.state.position.y - scale],
-        ]
-        .into_iter()
-        .map(|e| [e[0], e[1]])
-        .collect::<Vec<_>>()
-        .into(),
+            DrawShapeType::Box => vec![
+                [state.position.x - scale, state.position.y - scale],
+                [state.position.x - scale, state.position.y + scale],
+                [state.position.x + scale, state.position.y + scale],
+                [state.position.x + scale, state.position.y - scale],
+            ]
+            .into_iter()
+            .map(|e| [e[0], e[1]])
+            .collect::<Vec<_>>()
+            .into(),
+        }
+    } else {
+        PlotPoints::new(vec![])
     }
 }
 
@@ -86,8 +90,8 @@ fn get_info_vector(
 }
 
 impl CSimObject {
-    pub fn update(&mut self, _dt: f64, sim_state: &SimulationState) {
-        self.trace_line.update(self.state.position);
+    pub fn update(&mut self, sim_state: &SimulationState) {
+        self.timestep = sim_state.current_step;
     }
 
     pub fn draw(
@@ -99,6 +103,7 @@ impl CSimObject {
         let mut items: Vec<BoxedPlotDraw> = vec![];
         let settings = sim_state.settings.as_c_sim_settings().unwrap();
         let filter = &settings.plot_filter;
+        let current_state = self.current_state();
 
         let get_state_text_raw = |state: &CSObjectState| {
             format!(
@@ -122,7 +127,7 @@ impl CSimObject {
         // Draw stamp
         if filter.stamp && sim_state.is_sim_started() {
             for stamp in stamps {
-                if let Some(stamp_result) = stamp.get_data(&self.state, index, sim_state.time) {
+                if let Some(stamp_result) = stamp.get_data(&current_state, index, sim_state.time) {
                     let text = format!(
                         "<Stamp>\nLabel:{:?}\n{:}\nOn State Time {:.3?}",
                         stamp_result.label,
@@ -153,13 +158,13 @@ impl CSimObject {
         }
 
         if filter.text {
-            items.push(Box::new(get_self_state_text(&self.state)));
+            items.push(Box::new(get_self_state_text(&current_state)));
         }
 
         if filter.sigma_force {
-            let sigma_force = self.state.sigma_force(); // Sum of force
+            let sigma_force = current_state.sigma_force(); // Sum of force
 
-            let vector = (self.state.position, self.state.position + sigma_force);
+            let vector = (current_state.position, current_state.position + sigma_force);
 
             let data = ("Sigma_Force", (vector.1 - vector.0));
 
@@ -176,11 +181,11 @@ impl CSimObject {
 
         if filter.velocity {
             let vector = (
-                self.state.position,
-                self.state.position + self.state.velocity,
+                current_state.position,
+                current_state.position + current_state.velocity,
             );
 
-            let data = ("Velocity", self.state.velocity);
+            let data = ("Velocity", current_state.velocity);
 
             let (text, arrows) = get_info_vector(
                 sim_state.zoom,
@@ -194,13 +199,15 @@ impl CSimObject {
         }
 
         if filter.acceleration {
-            for acceleration in self
-                .state
+            for acceleration in current_state
                 .acc_list
                 .iter()
                 .filter(|x| !x.iter().all(|x| *x == 0.0))
             {
-                let vector = (self.state.position, self.state.position + acceleration);
+                let vector = (
+                    current_state.position,
+                    current_state.position + acceleration,
+                );
 
                 let data = ("acceleration", acceleration);
 
@@ -216,52 +223,40 @@ impl CSimObject {
             }
         }
 
-        if filter.equation {
-            let sim_time = sim_state.time;
-            let current_pos = self.state.position;
-            let init_pos = self.init_state().position;
-            let init_velocity = self.init_state().velocity;
-            let acceleration = self.state.acceleration();
-            let calc_pos =
-                init_pos + (init_velocity * sim_time) + (0.5 * acceleration * sim_time.powi(2));
-            let text = get_sized_text(
-                sim_state.zoom,
-                format!(
-                    "pos_{{final}} = pos_{{start}} +v_{{start}}*t + 1/2 * a_{{start}}*t^2\n\
-                         pos_{{final}} = {:.3?} + {:.3?}*{:.3?} + 1/2 * {:.3?}*{:.3?}^2\n\
-                         calculated pos_{{final}} = {:.3?} and in-simulation-pos = {:.3?}\n\
-                         error = {:.3?}\n\
-                         ",
-                    init_pos,
-                    init_velocity,
-                    sim_time,
-                    acceleration,
-                    sim_time,
-                    calc_pos,
-                    current_pos,
-                    (calc_pos - current_pos).norm()
-                ),
-                10.0,
-            )
-            .color(PlotColor::Equation.get_color());
-
-            let text = Text::new(
-                PlotPoint::new(current_pos.x, current_pos.y + (self.state.scale() * 2.0)),
-                text,
-            )
-            .anchor(Align2::LEFT_BOTTOM)
-            .name("equation 2.16");
-
-            items.push(Box::new(text));
-        }
-
         if sim_state.sim_started {
-            let trace_line = &self.trace_line;
+            const MAX_TRACE_LENGTH: usize = 5000;
+            let line = {
+                let current_timestep = sim_state.current_step;
+                let init_timestep = self.init_timestep;
+
+                let line_len = current_timestep
+                    .saturating_sub(init_timestep)
+                    .clamp(0, MAX_TRACE_LENGTH);
+
+                let data_len = self.state_timeline.len();
+
+                let index_end = current_timestep
+                    .saturating_sub(init_timestep)
+                    .clamp(0, data_len);
+
+                let index_start = index_end.saturating_sub(line_len);
+
+                Line::new(
+                    self.state_timeline
+                        .iter()
+                        .map(|x| {
+                            let pos = x.position;
+                            [pos.x, pos.y]
+                        })
+                        .collect::<Vec<_>>()[index_start..index_end]
+                        .to_vec(),
+                )
+                .color(PlotColor::TraceLine.get_color())
+                .name("trace line")
+            };
 
             if filter.trace {
-                items.push(Box::new(
-                    trace_line.line(sim_state.current_step, self.init_timestep),
-                ));
+                items.push(Box::new(line));
             }
         }
 

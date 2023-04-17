@@ -3,19 +3,19 @@ pub mod state;
 pub mod template;
 
 use crate::app::{Float, NVec2};
-use egui::plot::PlotPoint;
+
 use egui::{Response, Ui};
 use nalgebra::{vector, SMatrix};
 use tracing::info;
 
 use crate::app::graphics::plot::{InputMessage, PlotData};
 use crate::app::simulations::classic_simulation::object::drawing::get_object_mesh;
-use crate::app::simulations::classic_simulation::object::{
-    CSObjectState, CSObjectStateHistory, ForceIndex,
-};
+use crate::app::simulations::classic_simulation::object::{CSObjectState, ForceIndex};
 
+use crate::app::manager::SIMULATION_TICK;
 use crate::app::simulations::polygon::is_inside;
 use crate::app::simulations::state::SimulationState;
+
 pub use object::CSimObject;
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
@@ -45,7 +45,7 @@ pub trait Simulation: Send + Sync {
         state: &mut SimulationState,
     );
 
-    fn step(&mut self, dt: Float, state: &mut SimulationState);
+    fn step(&mut self, state: &mut SimulationState);
 
     fn at_time_step(&mut self, step: usize);
 
@@ -91,8 +91,12 @@ impl From<Vec<CSimObject>> for ClassicSimulation {
 
 impl Simulation for ClassicSimulation {
     fn inspection_ui(&mut self, ui: &mut Ui) {
-        for child in &mut self.objects {
-            child.inspection_ui(ui);
+        for (i, child) in self.objects.iter_mut().enumerate() {
+            ui.push_id(i, |ui| {
+                ui.collapsing(format!("Object {}", i), |ui| {
+                    child.inspection_ui(ui);
+                });
+            });
         }
     }
 
@@ -117,19 +121,23 @@ impl Simulation for ClassicSimulation {
         plot: &mut PlotData,
         msg: InputMessage,
         response: Response,
-        ctx: &egui::Context,
+        _ctx: &egui::Context,
         state: &mut SimulationState,
     ) {
         let simulation_objects = &mut self.objects;
-
         match self.operation {
             Operation::Navigate => {
                 if let Some(pointer_pos) = msg.pointer_pos {
                     if response.clicked() {
                         for (index, obj) in simulation_objects.iter().enumerate() {
-                            if is_inside(pointer_pos, get_object_mesh(obj).points()) {
-                                plot.selected_index = index;
-                                break;
+                            if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
+                                if is_inside(
+                                    pointer_pos,
+                                    get_object_mesh(Some(obj_state), obj.shape).points(),
+                                ) {
+                                    plot.selected_index = index;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -139,19 +147,27 @@ impl Simulation for ClassicSimulation {
                 if let Some(pointer_pos) = msg.pointer_pos {
                     if response.drag_started() {
                         for (index, obj) in simulation_objects.iter().enumerate() {
-                            if is_inside(pointer_pos, get_object_mesh(obj).points()) {
-                                plot.selected_index = index;
-                                plot.dragging_object = true;
-                                break;
+                            if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
+                                if is_inside(
+                                    pointer_pos,
+                                    get_object_mesh(Some(obj_state), obj.shape).points(),
+                                ) {
+                                    plot.selected_index = index;
+                                    plot.dragging_object = true;
+                                    break;
+                                }
                             }
                         }
                     }
 
                     if response.dragged() && plot.dragging_object {
-                        let pos = simulation_objects[plot.selected_index].state.position;
+                        let pos = simulation_objects[plot.selected_index]
+                            .current_state()
+                            .position;
                         let selected = &mut simulation_objects[plot.selected_index];
 
-                        selected.state.acc_list[ForceIndex::UserInteraction as usize] =
+                        selected.current_state_mut().acc_list
+                            [ForceIndex::UserInteraction as usize] =
                             vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
                     }
                 }
@@ -159,7 +175,8 @@ impl Simulation for ClassicSimulation {
                 if !response.dragged() && plot.dragging_object {
                     let selected = &mut simulation_objects[plot.selected_index];
 
-                    selected.state.acc_list[ForceIndex::UserInteraction as usize] = ZERO_FORCE;
+                    selected.current_state_mut().acc_list[ForceIndex::UserInteraction as usize] =
+                        ZERO_FORCE;
 
                     plot.dragging_object = false;
                 }
@@ -168,15 +185,15 @@ impl Simulation for ClassicSimulation {
                 if let Some(pointer_pos) = msg.pointer_pos {
                     if msg.clicked {
                         simulation_objects.push(CSimObject {
-                            state: CSObjectState {
+                            state_timeline: vec![CSObjectState {
                                 position: vector![pointer_pos.x, pointer_pos.y],
                                 velocity: vector![0.0, 0.0],
                                 ..CSObjectState::default()
-                            },
+                            }],
                             init_timestep: state.current_step,
+                            timestep: state.current_step,
                             ..CSimObject::default()
                         });
-                        info!("Clicked at {:?}", pointer_pos);
                     }
                 }
             }
@@ -185,7 +202,7 @@ impl Simulation for ClassicSimulation {
         }
     }
 
-    fn step(&mut self, dt: f64, state: &mut SimulationState) {
+    fn step(&mut self, state: &mut SimulationState) {
         if let Some(settings) = state.settings.as_c_sim_settings_mut() {
             if let Some(is_grav) = settings.gravity.get() {
                 if is_grav {
@@ -197,28 +214,21 @@ impl Simulation for ClassicSimulation {
         }
 
         for child in &mut self.objects {
-            child.update(dt, state);
-
-            child
-                .state_history
-                .push(CSObjectStateHistory::new(child.state.clone(), dt));
+            child.update(state);
 
             if let Some(attached_fn) = &child.attached {
-                attached_fn(&mut child.state, dt);
+                attached_fn(child.current_state_mut());
             }
 
-            physics_system(dt, child, self.global_acc_list.iter().sum());
+            physics_system(child, self.global_acc_list.iter().sum());
+
+            child.save_state();
         }
     }
 
     fn at_time_step(&mut self, step: usize) {
         for obj in self.objects.iter_mut() {
-            if let Some(state) = obj.state_at_timestep(step) {
-                obj.hide = false;
-                obj.state = state;
-            } else {
-                obj.hide = true;
-            }
+            obj.at_time_step(step);
         }
     }
 
@@ -231,37 +241,37 @@ impl Simulation for ClassicSimulation {
 
 //noinspection ALL
 #[allow(non_snake_case)]
-fn physics_system(Δt: Float, obj: &mut CSimObject, global_acc: NVec2) {
-    let last_obj_state = obj.state_history.last().unwrap().state.clone();
-    let last_dt = obj.state_history.last().unwrap().dt;
+fn physics_system(obj: &mut CSimObject, global_acc: NVec2) {
+    let last_obj_state = obj.state_timeline.last().unwrap().clone();
+    let dt = SIMULATION_TICK;
 
-    obj.state.position = {
+    obj.current_state_mut().position = {
         // ΣF
         // ΣF = ma
         // a = ΣF / m
         // Δv = a * Δt
         // Δp = ΣF * Δt
         // Δs = v * Δt
-        let current_acc = obj.state.acceleration();
+        let current_acc = obj.current_state().acceleration();
 
         let Σa = current_acc + global_acc; // Σa
         let Δa = current_acc - last_obj_state.acceleration();
 
-        let Δv = Σa * Δt; // 등가속도 운동에서의 보정.
-        let Δv_error = (Δa * last_dt) / 2.0;
+        let Δv = Σa * dt; // 등가속도 운동에서의 보정.
+        let Δv_error = (Δa * dt) / 2.0;
         let Δv = Δv + Δv_error;
 
-        let v = obj.state.velocity;
+        let v = obj.current_state().velocity;
 
-        let Δs = v * Δt;
-        let Δs_error = (Δv * last_dt) / 2.0; // 등가속도 운동에서의 보정.
+        let Δs = v * dt;
+        let Δs_error = (Δv * dt) / 2.0; // 등가속도 운동에서의 보정.
         let Δs = Δs + Δs_error;
         // Δs = v * Δt
 
-        obj.state.last_velocity = obj.state.velocity;
+        obj.current_state_mut().last_velocity = obj.current_state().velocity;
 
-        obj.state.velocity += Δv;
+        obj.current_state_mut().velocity += Δv;
 
-        obj.state.position + Δs
+        obj.current_state_mut().position + Δs
     };
 }

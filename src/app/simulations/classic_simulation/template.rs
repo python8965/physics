@@ -101,11 +101,11 @@ fn default_sim(data: BasicSimInit) -> CSPreset {
             let velocity = Vector2::new(velocity.0, velocity.1) * obj.start_velocity_mul;
 
             let a = CSimObject {
-                state: CSObjectState {
+                state_timeline: vec![CSObjectState {
                     velocity,
                     mass: obj.mass,
                     ..CSObjectState::default()
-                },
+                }],
                 ..CSimObject::default()
             };
 
@@ -143,15 +143,15 @@ fn circle_sim() -> CSPreset {
     let sim = vec![5.0]
         .iter()
         .map(|x| CSimObject {
-            state: CSObjectState {
+            state_timeline: vec![CSObjectState {
                 velocity: NVec2::new(*x, *x),
 
                 mass,
                 position: NVec2::new(1.0, 0.0),
 
                 ..CSObjectState::default()
-            },
-            attached: Some(|obj, _dt| {
+            }],
+            attached: Some(|obj| {
                 let _ = std::mem::replace(obj.acc_list.index_mut(ForceIndex::Attached as usize), {
                     let mut vector = obj.velocity.yx();
                     vector.y *= -1.0;
@@ -175,13 +175,13 @@ fn projectile_motion_sim() -> CSPreset {
     let sim = vec![2.0, 8.0, 20.0, 30.0, 40.0, 60.0, 100.0]
         .iter()
         .map(|x| CSimObject {
-            state: CSObjectState {
+            state_timeline: vec![CSObjectState {
                 velocity: NVec2::new(*x, *x),
 
                 mass,
                 position: NVec2::new(1.0, 0.0),
                 ..CSObjectState::default()
-            },
+            }],
             ..CSimObject::default()
         })
         .collect::<Vec<_>>();

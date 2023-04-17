@@ -12,7 +12,7 @@ use crate::app::util::FrameHistory;
 mod audio;
 mod graphics;
 mod io;
-mod manager;
+pub mod manager;
 mod simulations;
 mod util;
 
@@ -214,7 +214,7 @@ impl eframe::App for State {
                         ui.horizontal(|ui| {
                             ui.label("Time mul");
                             let _slider =
-                                Slider::new(self.simulation_manager.time_multiplier(), 0.1..=5.0)
+                                Slider::new(self.simulation_manager.time_multiplier(), 1..=5)
                                     .ui(ui);
                         });
 
