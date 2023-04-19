@@ -42,7 +42,7 @@ impl CSimObject {
         timestep.checked_sub(self.init_timestep)
     }
 
-    pub fn at_time_step(&mut self, timestep: usize) {
+    pub fn at_timestep(&mut self, timestep: usize) {
         if self.local_timestep(timestep).is_some() {
             self.hide = false;
             self.timestep = timestep;

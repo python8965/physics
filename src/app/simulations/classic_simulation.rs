@@ -228,7 +228,7 @@ impl Simulation for ClassicSimulation {
 
     fn at_time_step(&mut self, step: usize) {
         for obj in self.objects.iter_mut() {
-            obj.at_time_step(step);
+            obj.at_timestep(step);
         }
     }
 
