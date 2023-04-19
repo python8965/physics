@@ -17,7 +17,7 @@ impl<T: Default + Debug + Clone + Copy> From<T> for ChangeNotifier<T> {
 }
 
 impl<T: Default + Debug + Clone + Copy> ChangeNotifier<T> {
-    pub fn get(&mut self) -> Option<T> {
+    pub fn get(&self) -> Option<T> {
         if self.changed.replace(false) {
             Some(self.value)
         } else {
@@ -29,7 +29,7 @@ impl<T: Default + Debug + Clone + Copy> ChangeNotifier<T> {
         &mut self.value
     }
 
-    pub fn changed(&mut self) {
+    pub fn changed(&self) {
         self.changed.replace(true);
     }
 }
