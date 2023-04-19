@@ -2,23 +2,24 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
-pub struct ChangeNotifier<T: Debug + Clone + Copy> {
+pub struct ChangeNotifier<T: Debug + Clone + Copy + PartialEq> {
     value: T,
-    changed: RefCell<bool>,
+    changed: bool,
 }
 
-impl<T: Default + Debug + Clone + Copy> From<T> for ChangeNotifier<T> {
+impl<T: Debug + Clone + Copy + PartialEq> From<T> for ChangeNotifier<T> {
     fn from(value: T) -> Self {
         Self {
             value,
-            changed: RefCell::from(false),
+            changed: false,
         }
     }
 }
 
-impl<T: Default + Debug + Clone + Copy> ChangeNotifier<T> {
-    pub fn get(&self) -> Option<T> {
-        if self.changed.replace(false) {
+impl<T: Debug + Clone + Copy + PartialEq> ChangeNotifier<T> {
+    pub fn get(&mut self) -> Option<T> {
+        if self.changed {
+            self.changed = false;
             Some(self.value)
         } else {
             None
@@ -29,8 +30,8 @@ impl<T: Default + Debug + Clone + Copy> ChangeNotifier<T> {
         &mut self.value
     }
 
-    pub fn changed(&self) {
-        self.changed.replace(true);
+    pub fn changed(&mut self) {
+        self.changed = true;
     }
 }
 
