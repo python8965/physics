@@ -49,6 +49,8 @@ impl SimPlot {
         plot_ui: &mut PlotUi,
         state: &mut SimulationState,
     ) {
+        puffin::profile_scope!("draw_plot");
+
         self.plot_data.nearest_label = String::new();
         self.plot_data.near_value = PLOT_MAX_DISTANCE;
 
@@ -71,14 +73,14 @@ impl SimPlot {
 
         // 시뮬레이션 오브젝트 그리기
         for (index, obj) in simulation_objects.iter().enumerate() {
-            if obj.hide {
+            if *obj.hide() {
                 continue;
             }
 
             plot_ui.polygon(
                 Polygon::new(get_object_mesh(
                     obj.state_at_timestep(state.current_step),
-                    obj.shape,
+                    *obj.shape(),
                 ))
                 .color(PlotColor::Object.get_color()),
             );

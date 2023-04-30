@@ -3,7 +3,9 @@ use nalgebra::Vector2;
 use std::ops::IndexMut;
 
 use crate::app::graphics::CSPlotObjects;
-use crate::app::simulations::classic_simulation::object::{CSObjectState, ForceIndex};
+use crate::app::simulations::classic_simulation::object::{
+    CSObjectState, CSimObjectBuilder, ForceIndex,
+};
 use crate::app::simulations::classic_simulation::template::init::{
     BasicSimInit, BasicSimInitObjData, SimulationInit,
 };
@@ -100,16 +102,12 @@ fn default_sim(data: BasicSimInit) -> CSPreset {
             let velocity = obj.theta.to_radians().sin_cos();
             let velocity = Vector2::new(velocity.0, velocity.1) * obj.start_velocity_mul;
 
-            let a = CSimObject {
-                state_timeline: vec![CSObjectState {
-                    velocity,
-                    mass: obj.mass,
-                    ..CSObjectState::default()
-                }],
-                ..CSimObject::default()
-            };
-
-            a
+            CSimObjectBuilder::new(CSObjectState {
+                velocity,
+                mass: obj.mass,
+                ..CSObjectState::default()
+            })
+            .build()
         })
         .collect::<Vec<_>>();
 
@@ -142,23 +140,23 @@ fn circle_sim() -> CSPreset {
 
     let sim = vec![5.0]
         .iter()
-        .map(|x| CSimObject {
-            state_timeline: vec![CSObjectState {
+        .map(|x| {
+            CSimObjectBuilder::new(CSObjectState {
                 velocity: NVec2::new(*x, *x),
 
                 mass,
                 position: NVec2::new(1.0, 0.0),
 
                 ..CSObjectState::default()
-            }],
-            attached: Some(|obj| {
+            })
+            .attached(|obj| {
                 let _ = std::mem::replace(obj.acc_list.index_mut(ForceIndex::Attached as usize), {
                     let mut vector = obj.velocity.yx();
                     vector.y *= -1.0;
                     vector
                 });
-            }),
-            ..CSimObject::default()
+            })
+            .build()
         })
         .collect::<Vec<_>>();
 
@@ -174,15 +172,15 @@ fn projectile_motion_sim() -> CSPreset {
 
     let sim = vec![2.0, 8.0, 20.0, 30.0, 40.0, 60.0, 100.0]
         .iter()
-        .map(|x| CSimObject {
-            state_timeline: vec![CSObjectState {
+        .map(|x| {
+            CSimObjectBuilder::new(CSObjectState {
                 velocity: NVec2::new(*x, *x),
 
                 mass,
                 position: NVec2::new(1.0, 0.0),
                 ..CSObjectState::default()
-            }],
-            ..CSimObject::default()
+            })
+            .build()
         })
         .collect::<Vec<_>>();
 

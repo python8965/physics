@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
@@ -72,7 +71,6 @@ pub struct PlotViewFilter {
     pub(crate) trace: bool,
     pub(crate) text: bool,
     pub(crate) stamp: bool,
-    pub(crate) equation: bool,
 }
 
 impl Default for PlotViewFilter {
@@ -84,7 +82,6 @@ impl Default for PlotViewFilter {
             trace: true,
             text: false,
             stamp: true,
-            equation: true,
         }
     }
 }
@@ -97,6 +94,5 @@ impl PlotViewFilter {
         ui.checkbox(&mut self.trace, "Trace");
         ui.checkbox(&mut self.text, "Text");
         ui.checkbox(&mut self.stamp, "Stamp");
-        ui.checkbox(&mut self.equation, "Equation");
     }
 }

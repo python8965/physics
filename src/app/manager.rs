@@ -1,19 +1,22 @@
 use crate::app::graphics::plot::SimPlot;
 
-use crate::app::simulations::classic_simulation::state::CSimSettings;
+use crate::app::simulations::classic_simulation::sim_state::CSimSettings;
 use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation};
 use egui::Ui;
+use getset::Getters;
 use instant::Instant;
 
 use crate::app::simulations::classic_simulation::template::init::SimulationInit;
 use crate::app::simulations::classic_simulation::template::{CSPreset, CSTemplate};
-use crate::app::simulations::state::{SimulationSettings, SimulationState};
+use crate::app::simulations::state::{SimulationSettings, SimulationState, SpecificSimulationSettings};
 
 pub const SIMULATION_TICK: f64 = 1.0 / 240.0;
 
 /// This is the main simulation manager. It is responsible for managing the simulation and the plot.
+#[derive(Getters)]
 pub struct SimulationManager {
     simulation: Option<Box<dyn Simulation>>,
+    #[getset(get = "pub")]
     sim_state: SimulationState,
     simulation_plot: SimPlot,
     is_paused: bool,
@@ -41,19 +44,15 @@ impl SimulationManager {
     pub fn time_multiplier(&mut self) -> &mut usize {
         &mut self.sim_state.time_mul
     }
-
     pub fn get_time(&self) -> f64 {
         self.sim_state.time
     }
-
     pub fn get_pause(&self) -> bool {
         self.is_paused
     }
-
     pub fn timestep(&self) -> usize {
         self.sim_state.max_step
     }
-
     pub fn current_timestep_mut(&mut self) -> &mut usize {
         &mut self.sim_state.current_step
     }
@@ -81,7 +80,8 @@ impl SimulationManager {
         self.pause();
         self.simulation_plot = SimPlot::new(plot_objects);
         let simulation: Box<dyn Simulation> = Box::new(ClassicSimulation::from(simulation_objects));
-        self.sim_state.settings = SimulationSettings::CSimSettings(CSimSettings::default());
+        self.sim_state.settings =  SimulationSettings::new(SpecificSimulationSettings::CSimSettings(CSimSettings::default()));
+        
         self.simulation.replace(simulation);
 
         self.sim_state.reset();

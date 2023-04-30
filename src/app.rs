@@ -98,7 +98,7 @@ impl eframe::App for State {
 
         puffin::profile_function!();
         puffin::GlobalProfiler::lock().new_frame(); // call once per frame!
-                                                    //puffin_egui::profiler_window(ctx);
+        puffin_egui::profiler_window(ctx);
 
         self.simulation_manager.step();
 
@@ -283,6 +283,10 @@ impl eframe::App for State {
             //     puffin::profile_scope!("Plot::show");
             // });
 
+            fn no_spacer(_: GridInput) -> Vec<GridMark> {
+                vec![]
+            }
+
             fn default_spacer(grid_input: GridInput) -> Vec<GridMark> {
                 let log_base = 10.0;
 
@@ -333,12 +337,18 @@ impl eframe::App for State {
             {
                 let legend = Legend::default();
                 let mut plot = Plot::new("Plot")
-                    .x_grid_spacer(default_spacer)
-                    .y_grid_spacer(default_spacer)
                     .allow_boxed_zoom(false)
                     .data_aspect(1.0)
                     .allow_double_click_reset(false)
                     .legend(legend);
+
+                if state.settings.grid {
+                    plot = plot.x_grid_spacer(default_spacer);
+                    plot = plot.y_grid_spacer(default_spacer);
+                } else {
+                    plot = plot.x_grid_spacer(no_spacer);
+                    plot = plot.y_grid_spacer(no_spacer);
+                }
 
                 if simulation_plot.is_dragging_object() {
                     plot = plot.allow_drag(false)

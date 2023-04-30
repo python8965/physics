@@ -1,4 +1,4 @@
-use crate::app::simulations::classic_simulation::state::CSimSettings;
+use crate::app::simulations::classic_simulation::sim_state::CSimSettings;
 use egui::plot::{PlotPoint, PlotUi};
 use paste::paste;
 
@@ -20,11 +20,11 @@ macro_rules! cast_impl_inner {
                 $($body)*  // Previously-built variants
                 paste! {
                     pub fn [<as_ $variant:snake>](&self) -> Option<&$variant>{
-                        cast!(self, SimulationSettings::$variant)
+                        cast!(self, $name::$variant)
                     }
 
                     pub fn [<as_ $variant:snake _mut>](&mut self) -> Option<&mut $variant>{
-                        cast!(self, SimulationSettings::$variant)
+                        cast!(self, $name::$variant)
                     }
                 }
             }
@@ -46,29 +46,61 @@ macro_rules! cast_impl {
 #[derive(Clone, Copy, Debug)]
 pub struct BSimSettings {}
 
-cast_impl!(SimulationSettings, CSimSettings);
+cast_impl!(SpecificSimulationSettings, CSimSettings);
 
 #[derive(Clone, Debug)]
-pub enum SimulationSettings {
+pub struct SimulationSettings {
+    pub grid: bool,
+    pub specific: SpecificSimulationSettings,
+}
+
+impl Default for SimulationSettings {
+    fn default() -> Self {
+        Self {
+            grid: true,
+            specific: SpecificSimulationSettings::None,
+        }
+    }
+}
+
+impl SimulationSettings {
+    pub fn new(settings: SpecificSimulationSettings) -> Self {
+        Self {
+            specific: settings,
+            ..Default::default()
+        }
+    }
+
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.checkbox(&mut self.grid, "Grid");
+
+        ui.separator();
+
+        self.specific.ui(ui);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum SpecificSimulationSettings {
     CSimSettings(CSimSettings),
     BSimSettings(BSimSettings),
     None,
 }
 
-impl Default for SimulationSettings {
+impl Default for SpecificSimulationSettings {
     fn default() -> Self {
         Self::None
     }
 }
 
-impl SimulationSettings {
+impl SpecificSimulationSettings {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         match self {
             Self::None => {}
             Self::CSimSettings(settings) => {
                 settings.ui(ui);
             }
-            SimulationSettings::BSimSettings(_b) => {}
+            SpecificSimulationSettings::BSimSettings(_b) => {}
         }
     }
 }
@@ -82,6 +114,7 @@ pub struct SimulationState {
     pub(crate) current_step: usize,
     pub(crate) max_step: usize,
     pub(crate) sim_started: bool,
+
     pub(crate) zoom: f64,
 }
 
@@ -89,7 +122,7 @@ impl Default for SimulationState {
     fn default() -> Self {
         Self {
             pointer: None,
-            settings: SimulationSettings::None,
+            settings: Default::default(),
             time: 0.0,
             current_step: 0,
             max_step: 0,

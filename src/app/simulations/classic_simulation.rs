@@ -1,16 +1,17 @@
 pub mod object;
-pub mod state;
+pub mod sim_state;
 pub mod template;
 
-use crate::app::{Float, NVec2};
+use crate::app::NVec2;
 
 use egui::{Response, Ui};
 use nalgebra::{vector, SMatrix};
-use tracing::info;
 
 use crate::app::graphics::plot::{InputMessage, PlotData};
 use crate::app::simulations::classic_simulation::object::drawing::get_object_mesh;
-use crate::app::simulations::classic_simulation::object::{CSObjectState, ForceIndex};
+use crate::app::simulations::classic_simulation::object::{
+    CSObjectState, CSimObjectBuilder, ForceIndex,
+};
 
 use crate::app::manager::SIMULATION_TICK;
 use crate::app::simulations::polygon::is_inside;
@@ -133,7 +134,7 @@ impl Simulation for ClassicSimulation {
                             if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
                                 if is_inside(
                                     pointer_pos,
-                                    get_object_mesh(Some(obj_state), obj.shape).points(),
+                                    get_object_mesh(Some(obj_state), *obj.shape()).points(),
                                 ) {
                                     plot.selected_index = index;
                                     break;
@@ -150,7 +151,7 @@ impl Simulation for ClassicSimulation {
                             if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
                                 if is_inside(
                                     pointer_pos,
-                                    get_object_mesh(Some(obj_state), obj.shape).points(),
+                                    get_object_mesh(Some(obj_state), *obj.shape()).points(),
                                 ) {
                                     plot.selected_index = index;
                                     plot.dragging_object = true;
@@ -184,16 +185,13 @@ impl Simulation for ClassicSimulation {
             Operation::AddObject => {
                 if let Some(pointer_pos) = msg.pointer_pos {
                     if msg.clicked {
-                        simulation_objects.push(CSimObject {
-                            state_timeline: vec![CSObjectState {
+                        simulation_objects.push(
+                            CSimObjectBuilder::new(CSObjectState {
                                 position: vector![pointer_pos.x, pointer_pos.y],
-                                velocity: vector![0.0, 0.0],
                                 ..CSObjectState::default()
-                            }],
-                            init_timestep: state.current_step,
-                            timestep: state.current_step,
-                            ..CSimObject::default()
-                        });
+                            })
+                            .build(),
+                        );
                     }
                 }
             }
@@ -203,7 +201,9 @@ impl Simulation for ClassicSimulation {
     }
 
     fn step(&mut self, state: &mut SimulationState) {
-        if let Some(settings) = state.settings.as_c_sim_settings_mut() {
+        puffin::profile_scope!("ClassicSimulation::step");
+
+        if let Some(settings) = state.settings.specific.as_c_sim_settings_mut() {
             if let Some(is_grav) = settings.gravity.get() {
                 if is_grav {
                     self.global_acc_list[GlobalForceSlot::Gravity as usize] = GRAVITY;
@@ -216,7 +216,7 @@ impl Simulation for ClassicSimulation {
         for child in &mut self.objects {
             child.update(state);
 
-            if let Some(attached_fn) = &child.attached {
+            if let Some(attached_fn) = &child.attached() {
                 attached_fn(child.current_state_mut());
             }
 
@@ -242,7 +242,7 @@ impl Simulation for ClassicSimulation {
 //noinspection ALL
 #[allow(non_snake_case)]
 fn physics_system(obj: &mut CSimObject, global_acc: NVec2) {
-    let last_obj_state = obj.state_timeline.last().unwrap().clone();
+    let last_obj_state = obj.last_state().unwrap();
     let dt = SIMULATION_TICK;
 
     obj.current_state_mut().position = {

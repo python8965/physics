@@ -1,23 +1,73 @@
 pub mod drawing;
 
 use crate::app::graphics::define::DrawShapeType;
+use getset::Getters;
 use std::fmt::Debug;
-use tracing::info;
 
+use crate::app::simulations::state::SimulationState;
 use crate::app::NVec2;
 
 pub type AttachedFn = fn(&mut CSObjectState);
 
 pub struct CSimObjectTimeline {}
 
-#[derive(Clone)]
+pub struct CSimObjectBuilder {
+    init_state: Option<CSObjectState>,
+    init_timestep: Option<usize>,
+    shape: Option<DrawShapeType>,
+    attached: Option<AttachedFn>,
+}
+
+impl CSimObjectBuilder {
+    pub fn new(state: CSObjectState) -> Self {
+        Self {
+            init_state: Some(state),
+            init_timestep: None,
+            shape: None,
+            attached: None,
+        }
+    }
+
+    pub fn init_timestep(mut self, init_timestep: usize) -> Self {
+        self.init_timestep = Some(init_timestep);
+        self
+    }
+
+    pub fn shape(mut self, shape: DrawShapeType) -> Self {
+        self.shape = Some(shape);
+        self
+    }
+
+    pub fn attached(mut self, attached: AttachedFn) -> Self {
+        self.attached = Some(attached);
+        self
+    }
+
+    pub fn build(self) -> CSimObject {
+        let init_timestep = self.init_timestep.unwrap_or(0);
+        CSimObject {
+            state_timeline: vec![self.init_state.unwrap_or_default()],
+            init_timestep,
+            timestep: init_timestep,
+            shape: self.shape.unwrap_or(DrawShapeType::Circle),
+            hide: false,
+            attached: self.attached,
+        }
+    }
+}
+
+#[derive(Clone, Getters)]
 pub struct CSimObject {
-    pub state_timeline: Vec<CSObjectState>,
-    pub init_timestep: usize,
-    pub timestep: usize,
-    pub shape: DrawShapeType,
-    pub hide: bool,
-    pub attached: Option<AttachedFn>,
+    state_timeline: Vec<CSObjectState>,
+    init_timestep: usize,
+    timestep: usize,
+
+    #[getset(get = "pub")]
+    shape: DrawShapeType,
+    #[getset(get = "pub")]
+    hide: bool,
+    #[getset(get = "pub")]
+    attached: Option<AttachedFn>,
 }
 
 impl Default for CSimObject {
@@ -34,12 +84,20 @@ impl Default for CSimObject {
 }
 
 impl CSimObject {
+    pub fn update(&mut self, sim_state: &SimulationState) {
+        self.timestep = sim_state.current_step;
+    }
+
     pub fn save_state(&mut self) {
         self.state_timeline.push(self.current_state());
     }
 
     pub fn local_timestep(&self, timestep: usize) -> Option<usize> {
         timestep.checked_sub(self.init_timestep)
+    }
+
+    pub fn last_state(&self) -> Option<CSObjectState> {
+        self.state_timeline.last().cloned()
     }
 
     pub fn at_timestep(&mut self, timestep: usize) {

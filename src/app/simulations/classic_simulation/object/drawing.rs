@@ -90,10 +90,6 @@ fn get_info_vector(
 }
 
 impl CSimObject {
-    pub fn update(&mut self, sim_state: &SimulationState) {
-        self.timestep = sim_state.current_step;
-    }
-
     pub fn draw(
         &self,
         sim_state: &SimulationState,
@@ -101,7 +97,7 @@ impl CSimObject {
         stamps: &mut Vec<CSObjectStamp>,
     ) -> Vec<BoxedPlotDraw> {
         let mut items: Vec<BoxedPlotDraw> = vec![];
-        let settings = sim_state.settings.as_c_sim_settings().unwrap();
+        let settings = sim_state.settings.specific.as_c_sim_settings().unwrap();
         let filter = &settings.plot_filter;
         let current_state = self.current_state();
 
