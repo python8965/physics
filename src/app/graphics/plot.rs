@@ -67,6 +67,7 @@ impl SimPlot {
                 let pos = simulation_objects[self.plot_data.selected_index]
                     .current_state()
                     .position;
+
                 Line::new(vec![[pos.x, pos.y], [pointer_pos.x, pointer_pos.y]]).draw(plot_ui);
             }
         }

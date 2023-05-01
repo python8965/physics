@@ -96,6 +96,8 @@ impl CSimObject {
         index: usize,
         stamps: &mut Vec<CSObjectStamp>,
     ) -> Vec<BoxedPlotDraw> {
+        puffin::profile_function!();
+
         let mut items: Vec<BoxedPlotDraw> = vec![];
         let settings = sim_state.settings.specific.as_c_sim_settings().unwrap();
         let filter = &settings.plot_filter;
@@ -219,8 +221,11 @@ impl CSimObject {
             }
         }
 
-        if sim_state.sim_started {
+        puffin::profile_scope!("trace");
+
+        if sim_state.sim_started & filter.trace {
             const MAX_TRACE_LENGTH: usize = 5000;
+
             let line = {
                 let current_timestep = sim_state.current_step;
                 let init_timestep = self.init_timestep;
@@ -238,22 +243,20 @@ impl CSimObject {
                 let index_start = index_end.saturating_sub(line_len);
 
                 Line::new(
-                    self.state_timeline
+                    self.state_timeline[index_start..index_end]
                         .iter()
                         .map(|x| {
                             let pos = x.position;
                             [pos.x, pos.y]
                         })
-                        .collect::<Vec<_>>()[index_start..index_end]
+                        .collect::<Vec<_>>()
                         .to_vec(),
                 )
                 .color(PlotColor::TraceLine.get_color())
                 .name("trace line")
             };
 
-            if filter.trace {
-                items.push(Box::new(line));
-            }
+            items.push(Box::new(line));
         }
 
         items
