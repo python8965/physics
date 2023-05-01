@@ -1,14 +1,14 @@
-use crate::app::graphics::define::{BoxedPlotDraw, DrawShapeType, PlotColor, PlotTextSize};
+use crate::app::graphics::define::{BoxedPlotDraw, PlotColor, PlotTextSize};
 
-use crate::app::simulations::classic_simulation::object::CSObjectState;
+use crate::app::simulations::classic_simulation::object::state::CSObjectState;
 
 use crate::app::simulations::classic_simulation::template::stamp::CSObjectStamp;
 use crate::app::simulations::classic_simulation::CSimObject;
 use crate::app::simulations::state::SimulationState;
 use crate::app::NVec2;
-use egui::plot::{Arrows, Line, PlotPoint, PlotPoints, Points, Text};
+use egui::plot::{Arrows, Line, PlotPoint, Points, Text};
 use egui::{Align2, RichText};
-use std::f64::consts::TAU;
+
 use std::fmt::Debug;
 
 fn get_sized_text(zoom: f64, text: String, scale: f64) -> RichText {
@@ -25,38 +25,6 @@ fn get_sized_text(zoom: f64, text: String, scale: f64) -> RichText {
     }
 }
 
-// 오브젝트 모양 점을 반환한다.
-pub fn get_object_mesh(obj: Option<CSObjectState>, shape: DrawShapeType) -> PlotPoints {
-    if let Some(state) = obj {
-        let scale = state.scale();
-
-        match shape {
-            DrawShapeType::Circle => PlotPoints::from_parametric_callback(
-                move |t| {
-                    (
-                        t.sin() * scale + state.position.x,
-                        t.cos() * scale + state.position.y,
-                    )
-                },
-                0.0..TAU,
-                512,
-            ),
-
-            DrawShapeType::Box => vec![
-                [state.position.x - scale, state.position.y - scale],
-                [state.position.x - scale, state.position.y + scale],
-                [state.position.x + scale, state.position.y + scale],
-                [state.position.x + scale, state.position.y - scale],
-            ]
-            .into_iter()
-            .map(|e| [e[0], e[1]])
-            .collect::<Vec<_>>()
-            .into(),
-        }
-    } else {
-        PlotPoints::new(vec![])
-    }
-}
 
 // 벡터의 화살표 모양을 반환한다.
 fn get_info_vector(

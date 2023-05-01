@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::ops::RangeInclusive;
 
-use crate::app::simulations::classic_simulation::object::CSObjectState;
+use crate::app::simulations::classic_simulation::object::state::CSObjectState;
 
 #[derive(Clone, Debug)]
 pub struct CSObjectStampResult {

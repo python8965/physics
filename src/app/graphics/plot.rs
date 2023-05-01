@@ -5,7 +5,6 @@ use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
 
 use crate::app::graphics::define::{PlotColor, PlotDrawHelper};
 use crate::app::graphics::CSPlotObjects;
-use crate::app::simulations::classic_simulation::object::drawing::get_object_mesh;
 
 use crate::app::simulations::classic_simulation::{CSimObject, Simulation};
 use crate::app::simulations::state::SimulationState;
@@ -79,10 +78,9 @@ impl SimPlot {
             }
 
             plot_ui.polygon(
-                Polygon::new(get_object_mesh(
-                    obj.state_at_timestep(state.current_step),
-                    *obj.shape(),
-                ))
+                Polygon::new(
+                    obj.shape().get_plot_points(obj.current_state().position)
+                )
                 .color(PlotColor::Object.get_color()),
             );
 

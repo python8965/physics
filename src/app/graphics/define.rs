@@ -1,4 +1,4 @@
-use std::fmt::{Debug};
+
 
 use eframe::epaint::Color32;
 use egui::plot::{Arrows, Line, PlotImage, PlotUi, Points, Polygon, Text};
@@ -29,12 +29,6 @@ impl PlotColor {
             PlotColor::StampText => Color32::GREEN,
         }
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum DrawShapeType {
-    Circle,
-    Box,
 }
 
 pub enum PlotTextSize {

@@ -3,9 +3,6 @@ use nalgebra::Vector2;
 use std::ops::IndexMut;
 
 use crate::app::graphics::CSPlotObjects;
-use crate::app::simulations::classic_simulation::object::{
-    CSObjectState, CSimObjectBuilder, ForceIndex,
-};
 use crate::app::simulations::classic_simulation::template::init::{
     BasicSimInit, BasicSimInitObjData, SimulationInit,
 };
@@ -14,6 +11,8 @@ use crate::app::simulations::classic_simulation::template::stamp::{
 };
 use crate::app::simulations::classic_simulation::CSimObject;
 use crate::app::NVec2;
+use crate::app::simulations::classic_simulation::object::builder::CSimObjectBuilder;
+use crate::app::simulations::classic_simulation::object::state::{CSObjectState, ForceIndex};
 
 pub mod init;
 pub mod stamp;

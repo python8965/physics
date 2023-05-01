@@ -2,22 +2,20 @@ pub mod object;
 pub mod sim_state;
 pub mod template;
 
+
 use crate::app::NVec2;
 
 use egui::{Response, Ui};
-use nalgebra::{vector, SMatrix};
+use nalgebra::{SMatrix, vector};
 
 use crate::app::graphics::plot::{InputMessage, PlotData};
-use crate::app::simulations::classic_simulation::object::drawing::get_object_mesh;
-use crate::app::simulations::classic_simulation::object::{
-    CSObjectState, CSimObjectBuilder, ForceIndex,
-};
-
 use crate::app::manager::SIMULATION_TICK;
 use crate::app::simulations::polygon::is_inside;
 use crate::app::simulations::state::SimulationState;
 
 pub use object::CSimObject;
+use self::object::builder::CSimObjectBuilder;
+use self::object::state::{CSObjectState, ForceIndex};
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
 pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];
@@ -131,10 +129,10 @@ impl Simulation for ClassicSimulation {
                 if let Some(pointer_pos) = msg.pointer_pos {
                     if response.clicked() {
                         for (index, obj) in simulation_objects.iter().enumerate() {
-                            if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
+                            if let Some(_obj_state) = obj.state_at_timestep(state.current_step) {
                                 if is_inside(
                                     pointer_pos,
-                                    get_object_mesh(Some(obj_state), *obj.shape()).points(),
+                                    obj.shape().get_points(),
                                 ) {
                                     plot.selected_index = index;
                                     break;
@@ -148,10 +146,10 @@ impl Simulation for ClassicSimulation {
                 if let Some(pointer_pos) = msg.pointer_pos {
                     if response.drag_started() {
                         for (index, obj) in simulation_objects.iter().enumerate() {
-                            if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
+                            if let Some(_obj_state) = obj.state_at_timestep(state.current_step) {
                                 if is_inside(
                                     pointer_pos,
-                                    get_object_mesh(Some(obj_state), *obj.shape()).points(),
+                                    obj.shape().get_points(),
                                 ) {
                                     plot.selected_index = index;
                                     plot.dragging_object = true;
@@ -222,6 +220,11 @@ impl Simulation for ClassicSimulation {
 
             physics_system(child, self.global_acc_list.iter().sum());
 
+
+            // contact
+            {
+            }
+
             child.save_state();
         }
     }
@@ -242,7 +245,8 @@ impl Simulation for ClassicSimulation {
 //noinspection ALL
 #[allow(non_snake_case)]
 fn physics_system(obj: &mut CSimObject, global_acc: NVec2) {
-    let last_obj_state = obj.last_state().unwrap();
+    let last_state = obj.last_state().unwrap();
+    let current_state = obj.current_state();
     let dt = SIMULATION_TICK;
 
     obj.current_state_mut().position = {
@@ -252,23 +256,24 @@ fn physics_system(obj: &mut CSimObject, global_acc: NVec2) {
         // Δv = a * Δt
         // Δp = ΣF * Δt
         // Δs = v * Δt
-        let current_acc = obj.current_state().acceleration();
+
+        let current_acc = current_state.acceleration();
 
         let Σa = current_acc + global_acc; // Σa
-        let Δa = current_acc - last_obj_state.acceleration();
+        let Δa = current_acc - last_state.acceleration();
 
         let Δv = Σa * dt; // 등가속도 운동에서의 보정.
         let Δv_error = (Δa * dt) / 2.0;
         let Δv = Δv + Δv_error;
 
-        let v = obj.current_state().velocity;
+        let v = current_state.velocity;
 
         let Δs = v * dt;
         let Δs_error = (Δv * dt) / 2.0; // 등가속도 운동에서의 보정.
         let Δs = Δs + Δs_error;
         // Δs = v * Δt
 
-        obj.current_state_mut().last_velocity = obj.current_state().velocity;
+        obj.current_state_mut().last_velocity = current_state.velocity;
 
         obj.current_state_mut().velocity += Δv;
 

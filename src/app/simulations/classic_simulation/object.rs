@@ -1,60 +1,19 @@
 pub mod drawing;
+pub mod builder;
+pub mod state;
+pub mod shape;
 
-use crate::app::graphics::define::DrawShapeType;
 use getset::Getters;
-use std::fmt::Debug;
+
+use state::{CSObjectState, CSObjectStateBuilder};
 
 use crate::app::simulations::state::SimulationState;
-use crate::app::NVec2;
+
+use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
 
 pub type AttachedFn = fn(&mut CSObjectState);
 
 pub struct CSimObjectTimeline {}
-
-pub struct CSimObjectBuilder {
-    init_state: Option<CSObjectState>,
-    init_timestep: Option<usize>,
-    shape: Option<DrawShapeType>,
-    attached: Option<AttachedFn>,
-}
-
-impl CSimObjectBuilder {
-    pub fn new(state: CSObjectState) -> Self {
-        Self {
-            init_state: Some(state),
-            init_timestep: None,
-            shape: None,
-            attached: None,
-        }
-    }
-
-    pub fn init_timestep(mut self, init_timestep: usize) -> Self {
-        self.init_timestep = Some(init_timestep);
-        self
-    }
-
-    pub fn shape(mut self, shape: DrawShapeType) -> Self {
-        self.shape = Some(shape);
-        self
-    }
-
-    pub fn attached(mut self, attached: AttachedFn) -> Self {
-        self.attached = Some(attached);
-        self
-    }
-
-    pub fn build(self) -> CSimObject {
-        let init_timestep = self.init_timestep.unwrap_or(0);
-        CSimObject {
-            state_timeline: vec![self.init_state.unwrap_or_default()],
-            init_timestep,
-            timestep: init_timestep,
-            shape: self.shape.unwrap_or(DrawShapeType::Circle),
-            hide: false,
-            attached: self.attached,
-        }
-    }
-}
 
 #[derive(Clone, Getters)]
 pub struct CSimObject {
@@ -63,7 +22,7 @@ pub struct CSimObject {
     timestep: usize,
 
     #[getset(get = "pub")]
-    shape: DrawShapeType,
+    shape: ObjectShape,
     #[getset(get = "pub")]
     hide: bool,
     #[getset(get = "pub")]
@@ -76,7 +35,7 @@ impl Default for CSimObject {
             state_timeline: vec![],
             init_timestep: 0,
             timestep: 0,
-            shape: DrawShapeType::Circle,
+            shape: ObjectShape::default(),
             hide: false,
             attached: None,
         }
@@ -151,89 +110,5 @@ impl CSimObject {
             ui.label(format!("{:?}", self.current_state().mass));
             ui.end_row();
         });
-    }
-}
-
-#[repr(usize)]
-pub enum ForceIndex {
-    Attached = 0,
-    UserInteraction = 1,
-    MAX = 2,
-}
-
-#[derive(Clone, Debug)]
-pub struct CSObjectState {
-    pub position: NVec2,
-    pub velocity: NVec2,
-    pub last_velocity: NVec2,
-    pub mass: f64,
-    pub acc_list: Vec<NVec2>,
-}
-
-impl CSObjectState {
-    pub(crate) fn momentum(&self) -> NVec2 {
-        // P = mv , v = P/m
-        self.velocity * self.mass
-    }
-
-    pub fn sigma_force(&self) -> NVec2 {
-        // ΣF = F1 + F2 + F3 + ...
-        self.acceleration() / self.mass
-    }
-
-    pub fn acceleration(&self) -> NVec2 {
-        // a = F/m
-        self.acc_list.iter().sum::<NVec2>()
-    }
-
-    pub fn scale(&self) -> f64 {
-        5.0 + (self.mass / 4.0)
-    }
-}
-
-impl Default for CSObjectState {
-    fn default() -> Self {
-        Self {
-            position: Default::default(),
-            velocity: Default::default(),
-            last_velocity: Default::default(),
-            mass: 10.0,
-            acc_list: vec![NVec2::zeros(); ForceIndex::MAX as usize],
-        }
-    }
-}
-
-pub struct CSObjectStateBuilder {
-    state: CSObjectState,
-}
-
-impl CSObjectStateBuilder {
-    pub fn new() -> Self {
-        Self {
-            state: Default::default(),
-        }
-    }
-
-    pub fn from_state(state: CSObjectState) -> Self {
-        Self { state }
-    }
-
-    pub fn position(&mut self, position: NVec2) -> &mut Self {
-        self.state.position = position;
-        self
-    }
-
-    pub fn velocity(&mut self, velocity: NVec2) -> &mut Self {
-        self.state.velocity = velocity;
-        self
-    }
-
-    pub fn mass(&mut self, mass: f64) -> &mut Self {
-        self.state.mass = mass;
-        self
-    }
-
-    pub fn build(self) -> CSObjectState {
-        self.state
     }
 }
