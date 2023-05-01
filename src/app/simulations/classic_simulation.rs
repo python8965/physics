@@ -2,20 +2,19 @@ pub mod object;
 pub mod sim_state;
 pub mod template;
 
-
 use crate::app::NVec2;
 
 use egui::{Response, Ui};
-use nalgebra::{SMatrix, vector};
+use nalgebra::{vector, SMatrix};
 
 use crate::app::graphics::plot::{InputMessage, PlotData};
 use crate::app::manager::SIMULATION_TICK;
 use crate::app::simulations::polygon::is_inside;
 use crate::app::simulations::state::SimulationState;
 
-pub use object::CSimObject;
 use self::object::builder::CSimObjectBuilder;
 use self::object::state::{CSObjectState, ForceIndex};
+pub use object::CSimObject;
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
 pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];
@@ -130,10 +129,7 @@ impl Simulation for ClassicSimulation {
                     if response.clicked() {
                         for (index, obj) in simulation_objects.iter().enumerate() {
                             if let Some(_obj_state) = obj.state_at_timestep(state.current_step) {
-                                if is_inside(
-                                    pointer_pos,
-                                    obj.shape().get_points(),
-                                ) {
+                                if is_inside(pointer_pos, obj.shape().get_points()) {
                                     plot.selected_index = index;
                                     break;
                                 }
@@ -147,10 +143,7 @@ impl Simulation for ClassicSimulation {
                     if response.drag_started() {
                         for (index, obj) in simulation_objects.iter().enumerate() {
                             if let Some(_obj_state) = obj.state_at_timestep(state.current_step) {
-                                if is_inside(
-                                    pointer_pos,
-                                    obj.shape().get_points(),
-                                ) {
+                                if is_inside(pointer_pos, obj.shape().get_points()) {
                                     plot.selected_index = index;
                                     plot.dragging_object = true;
                                     break;
@@ -220,10 +213,8 @@ impl Simulation for ClassicSimulation {
 
             physics_system(child, self.global_acc_list.iter().sum());
 
-
             // contact
-            {
-            }
+            {}
 
             child.save_state();
         }

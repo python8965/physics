@@ -1,7 +1,7 @@
-pub mod drawing;
 pub mod builder;
-pub mod state;
+pub mod drawing;
 pub mod shape;
+pub mod state;
 
 use getset::Getters;
 
@@ -13,9 +13,7 @@ use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
 
 pub type AttachedFn = fn(&mut CSObjectState);
 
-pub struct CSimObjectTimeline {}
-
-#[derive(Clone, Getters)]
+#[derive(Default, Clone, Getters)]
 pub struct CSimObject {
     state_timeline: Vec<CSObjectState>,
     init_timestep: usize,
@@ -27,19 +25,6 @@ pub struct CSimObject {
     hide: bool,
     #[getset(get = "pub")]
     attached: Option<AttachedFn>,
-}
-
-impl Default for CSimObject {
-    fn default() -> Self {
-        Self {
-            state_timeline: vec![],
-            init_timestep: 0,
-            timestep: 0,
-            shape: ObjectShape::default(),
-            hide: false,
-            attached: None,
-        }
-    }
 }
 
 impl CSimObject {
