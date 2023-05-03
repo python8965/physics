@@ -1,8 +1,7 @@
-
-use crate::app::simulations::classic_simulation::CSimObject;
-use crate::app::simulations::classic_simulation::object::AttachedFn;
 use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
 use crate::app::simulations::classic_simulation::object::state::CSObjectState;
+use crate::app::simulations::classic_simulation::object::AttachedFn;
+use crate::app::simulations::classic_simulation::CSimObject;
 
 pub struct CSimObjectBuilder {
     init_state: Option<CSObjectState>,
@@ -21,7 +20,7 @@ impl CSimObjectBuilder {
         }
     }
 
-    pub fn init_timestep(mut self, init_timestep: usize) -> Self {
+    pub fn at(mut self, init_timestep: usize) -> Self {
         self.init_timestep = Some(init_timestep);
         self
     }
