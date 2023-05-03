@@ -20,8 +20,6 @@ pub struct CSimObject {
     timestep: usize,
 
     #[getset(get = "pub")]
-    shape: ObjectShape,
-    #[getset(get = "pub")]
     hide: bool,
     #[getset(get = "pub")]
     attached: Option<AttachedFn>,

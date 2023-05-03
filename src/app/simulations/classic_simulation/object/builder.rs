@@ -42,7 +42,6 @@ impl CSimObjectBuilder {
             state_timeline: vec![self.init_state.unwrap_or_default()],
             init_timestep,
             timestep: init_timestep,
-            shape: self.shape.unwrap_or(ObjectShape::default()),
             hide: false,
             attached: self.attached,
         }

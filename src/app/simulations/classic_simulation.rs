@@ -6,6 +6,7 @@ use crate::app::NVec2;
 
 use egui::{Response, Ui};
 use nalgebra::{vector, SMatrix};
+use tracing::info;
 
 use crate::app::graphics::plot::{InputMessage, PlotData};
 use crate::app::manager::SIMULATION_TICK;
@@ -128,8 +129,8 @@ impl Simulation for ClassicSimulation {
                 if let Some(pointer_pos) = msg.pointer_pos {
                     if response.clicked() {
                         for (index, obj) in simulation_objects.iter().enumerate() {
-                            if let Some(_obj_state) = obj.state_at_timestep(state.current_step) {
-                                if is_inside(pointer_pos, obj.shape().get_points()) {
+                            if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
+                                if is_inside(pointer_pos, obj_state.shape.get_points()) {
                                     plot.selected_index = index;
                                     break;
                                 }
@@ -142,8 +143,8 @@ impl Simulation for ClassicSimulation {
                 if let Some(pointer_pos) = msg.pointer_pos {
                     if response.drag_started() {
                         for (index, obj) in simulation_objects.iter().enumerate() {
-                            if let Some(_obj_state) = obj.state_at_timestep(state.current_step) {
-                                if is_inside(pointer_pos, obj.shape().get_points()) {
+                            if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
+                                if is_inside(pointer_pos, obj_state.shape.get_points()) {
                                     plot.selected_index = index;
                                     plot.dragging_object = true;
                                     break;
@@ -204,19 +205,34 @@ impl Simulation for ClassicSimulation {
             }
         }
 
-        for child in &mut self.objects {
-            child.update(state);
+        let length = self.objects.len();
 
-            if let Some(attached_fn) = &child.attached() {
-                attached_fn(child.current_state_mut());
+        for i in 1..length+1 {
+
+            let (front, end) = self.objects.split_at_mut(i-1);
+
+            let Some((obj, rest)) = end.split_first_mut() else {panic!("Cannot Reach")};
+
+            let obj_state = &mut obj.current_state();
+
+            obj.update(state);
+
+            if let Some(attached_fn) = &obj.attached() {
+                attached_fn(obj.current_state_mut());
             }
 
-            physics_system(child, self.global_acc_list.iter().sum());
+            physics_system(obj, self.global_acc_list.iter().sum());
 
-            // contact
-            {}
+            for obj2 in rest {
 
-            child.save_state();
+                let obj2_state = &mut obj2.current_state();
+
+                if let Some(contact) = obj_state.shape.contact(obj_state.position, &obj2_state.shape, obj2_state.position){
+                    info!("{:?}", contact);
+                }
+            }
+
+            obj.save_state();
         }
     }
 

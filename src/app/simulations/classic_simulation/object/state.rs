@@ -1,4 +1,5 @@
 use crate::app::NVec2;
+use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
 
 #[repr(usize)]
 pub enum ForceIndex {
@@ -14,9 +15,11 @@ pub struct CSObjectState {
     pub last_velocity: NVec2,
     pub mass: f64,
     pub acc_list: Vec<NVec2>,
+    pub shape: ObjectShape,
 }
 
 impl CSObjectState {
+
     pub(crate) fn momentum(&self) -> NVec2 {
         // P = mv , v = P/m
         self.velocity * self.mass
@@ -45,6 +48,7 @@ impl Default for CSObjectState {
             last_velocity: Default::default(),
             mass: 10.0,
             acc_list: vec![NVec2::zeros(); ForceIndex::MAX as usize],
+            shape: ObjectShape::default(),
         }
     }
 }

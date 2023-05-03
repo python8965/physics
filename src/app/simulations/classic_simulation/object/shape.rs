@@ -1,10 +1,15 @@
 use crate::app::NVec2;
 use egui::plot::PlotPoints;
 use std::f64::consts::TAU;
+use std::ops::{Div, DivAssign};
 
 pub trait Shape {
     fn get_points(&self) -> Vec<[f64; 2]>;
-    fn get_plot_points(&self) -> PlotPoints;
+    fn get_plot_points(&self, pos: NVec2) -> PlotPoints;
+}
+
+pub trait Collision {
+    fn contact(&self, this_pos: NVec2, ops: &ObjectShape, ops_pos: NVec2) -> Option<ContactInfo>;
 }
 
 #[allow(dead_code)]
@@ -22,16 +27,14 @@ impl Default for ObjectShape {
 
 #[allow(dead_code)]
 impl ObjectShape {
-    pub fn circle(pos: NVec2, radius: f64) -> Self {
+    pub fn circle(radius: f64) -> Self {
         Self::Circle(Circle {
             radius,
-            position: pos,
         })
     }
 
-    pub fn rect(pos: NVec2, width: f64, height: f64) -> Self {
+    pub fn rect(width: f64, height: f64) -> Self {
         Self::Rect(Rect {
-            position: pos,
             width,
             height,
         })
@@ -44,22 +47,23 @@ impl ObjectShape {
         }
     }
 
-    pub fn get_plot_points(&self) -> PlotPoints {
+    pub fn get_plot_points(&self, pos: NVec2) -> PlotPoints {
         match self {
-            Self::Circle(circle) => circle.get_plot_points(),
-            Self::Rect(rect) => rect.get_plot_points(),
+            Self::Circle(circle) => circle.get_plot_points(pos),
+            Self::Rect(rect) => rect.get_plot_points(pos),
         }
     }
 
-    pub fn contact(&self, ops: ObjectShape) -> Option<ContactInfo> {
+    pub fn contact(&self,this_pos: NVec2,  ops: &ObjectShape, ops_pos: NVec2) -> Option<ContactInfo> {
         match self {
-            Self::Circle(circle) => circle.contact(ops),
-            Self::Rect(rect) => rect.contact(ops),
+            Self::Circle(circle) => circle.contact(this_pos, ops, ops_pos),
+            Self::Rect(rect) => rect.contact(this_pos, ops, ops_pos),
         }
     }
 }
 
-struct ContactInfo {
+#[derive(Debug, Clone, Copy)]
+pub struct ContactInfo {
     pub contact_point: NVec2,
     pub contact_normal: NVec2,
     pub penetration: f64,
@@ -68,14 +72,12 @@ struct ContactInfo {
 #[derive(Debug, Clone, Copy)]
 pub struct Circle {
     pub radius: f64,
-    pub position: NVec2,
 }
 
 impl Default for Circle {
     fn default() -> Self {
         Self {
             radius: Self::DEFAULT_RADIUS,
-            position: Default::default(),
         }
     }
 }
@@ -85,12 +87,12 @@ impl Shape for Circle {
         self._get_points(Self::DEFAULT_RESOLUTION)
     }
 
-    fn get_plot_points(&self) -> PlotPoints {
+    fn get_plot_points(&self, pos: NVec2) -> PlotPoints {
         PlotPoints::from_parametric_callback(
             move |t| {
                 (
-                    t.sin() * self.radius + self.position.x,
-                    t.cos() * self.radius + self.position.y,
+                    t.sin() * self.radius + pos.x,
+                    t.cos() * self.radius + pos.y,
                 )
             },
             0.0..TAU,
@@ -123,17 +125,35 @@ impl Circle {
         self._get_points(resolution)
     }
 
-    pub fn contact(&self, ops: ObjectShape) -> Option<ContactInfo> {
+}
+
+impl Collision for Circle{
+    fn contact(&self, this_pos: NVec2, ops: &ObjectShape, ops_pos: NVec2) -> Option<ContactInfo> {
         match ops {
             ObjectShape::Circle(circle) => {
                 //TODO: copilot maked code, may be wrong
-                let distance = (self.position - circle.position).norm();
-                let penetration = self.radius + circle.radius - distance;
-                let contact_normal = (circle.position - self.position).normalize();
-                let contact_point = self.position + contact_normal * self.radius;
+                let delta_pos = ops_pos - this_pos;
+
+                let penetration = self.radius + circle.radius - delta_pos.norm();
+
+                if penetration < 0.0 {
+                    return None;
+                }
+
+                let normalized = delta_pos.normalize();
+
+
+                let contact_normal = delta_pos.normalize();
+
+                let this_contact_normal = normalized * penetration;
+
+                let ops_contact_normal = -normalized * penetration;
+                let contact_point = (this_pos + ops_pos).div(2.0);
+
+
                 Some(ContactInfo {
                     contact_point,
-                    contact_normal,
+                    contact_normal: this_contact_normal,
                     penetration,
                 })
             }
@@ -148,8 +168,6 @@ impl Circle {
 pub struct Rect {
     pub width: f64,
     pub height: f64,
-
-    pub position: NVec2,
 }
 
 impl Shape for Rect {
@@ -164,7 +182,7 @@ impl Shape for Rect {
         ]
     }
 
-    fn get_plot_points(&self) -> PlotPoints {
+    fn get_plot_points(&self, pos: NVec2) -> PlotPoints {
         let width = self.width;
         let height = self.height;
         vec![
@@ -174,14 +192,14 @@ impl Shape for Rect {
             (-width / 2.0, height / 2.0),
         ]
         .into_iter()
-        .map(|e| [e.0 + self.position.x, e.1 + self.position.y])
+        .map(|e| [e.0 + pos.x, e.1 + pos.y])
         .collect::<Vec<_>>()
         .into()
     }
 }
 
-impl Rect {
-    pub fn contact(&self, ops: ObjectShape) -> Option<ContactInfo> {
+impl Collision for Rect {
+    fn contact(&self, this_pos: NVec2, ops: &ObjectShape, ops_pos: NVec2) -> Option<ContactInfo> {
         todo!()
     }
 }

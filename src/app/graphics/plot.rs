@@ -77,9 +77,11 @@ impl SimPlot {
                 continue;
             }
 
+            let obj_state = &mut obj.current_state();
+
             plot_ui.polygon(
                 Polygon::new(
-                    obj.shape().get_plot_points(obj.current_state().position)
+                    obj_state.shape.get_plot_points(obj_state.position)
                 )
                 .color(PlotColor::Object.get_color()),
             );
