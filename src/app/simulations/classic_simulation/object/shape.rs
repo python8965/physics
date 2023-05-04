@@ -2,15 +2,14 @@ use crate::app::NVec2;
 use egui::plot::PlotPoints;
 use std::f64::consts::TAU;
 use std::ops::{Div, DivAssign};
+use crate::app::simulations::classic_simulation::CSimObject;
 
 pub trait Shape {
     fn get_points(&self) -> Vec<[f64; 2]>;
     fn get_plot_points(&self, pos: NVec2) -> PlotPoints;
 }
 
-pub trait Collision {
-    fn contact(&self, this_pos: NVec2, ops: &ObjectShape, ops_pos: NVec2) -> Option<ContactInfo>;
-}
+
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
@@ -53,13 +52,6 @@ impl ObjectShape {
             Self::Rect(rect) => rect.get_plot_points(pos),
         }
     }
-
-    pub fn contact(&self,this_pos: NVec2,  ops: &ObjectShape, ops_pos: NVec2) -> Option<ContactInfo> {
-        match self {
-            Self::Circle(circle) => circle.contact(this_pos, ops, ops_pos),
-            Self::Rect(rect) => rect.contact(this_pos, ops, ops_pos),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -67,6 +59,8 @@ pub struct ContactInfo {
     pub contact_point: NVec2,
     pub contact_normal: NVec2,
     pub penetration: f64,
+
+    pub contact_momentum: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -127,43 +121,6 @@ impl Circle {
 
 }
 
-impl Collision for Circle{
-    fn contact(&self, this_pos: NVec2, ops: &ObjectShape, ops_pos: NVec2) -> Option<ContactInfo> {
-        match ops {
-            ObjectShape::Circle(circle) => {
-                //TODO: copilot maked code, may be wrong
-                let delta_pos = ops_pos - this_pos;
-
-                let penetration = self.radius + circle.radius - delta_pos.norm();
-
-                if penetration < 0.0 {
-                    return None;
-                }
-
-                let normalized = delta_pos.normalize();
-
-
-                let contact_normal = delta_pos.normalize();
-
-                let this_contact_normal = normalized * penetration;
-
-                let ops_contact_normal = -normalized * penetration;
-                let contact_point = (this_pos + ops_pos).div(2.0);
-
-
-                Some(ContactInfo {
-                    contact_point,
-                    contact_normal: this_contact_normal,
-                    penetration,
-                })
-            }
-            ObjectShape::Rect(rect) => {
-                todo!("Circle-Rect contact");
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct Rect {
     pub width: f64,
@@ -195,11 +152,5 @@ impl Shape for Rect {
         .map(|e| [e.0 + pos.x, e.1 + pos.y])
         .collect::<Vec<_>>()
         .into()
-    }
-}
-
-impl Collision for Rect {
-    fn contact(&self, this_pos: NVec2, ops: &ObjectShape, ops_pos: NVec2) -> Option<ContactInfo> {
-        todo!()
     }
 }

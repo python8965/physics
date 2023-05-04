@@ -1,5 +1,11 @@
+use nalgebra::vector;
 use crate::app::NVec2;
-use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
+use crate::app::simulations::classic_simulation::CSimObject;
+use crate::app::simulations::classic_simulation::object::shape::{ContactInfo, ObjectShape};
+
+pub trait Collision {
+    fn contact(&self, ops: &CSObjectState) -> Option<ContactInfo>;
+}
 
 #[repr(usize)]
 pub enum ForceIndex {
@@ -16,6 +22,40 @@ pub struct CSObjectState {
     pub mass: f64,
     pub acc_list: Vec<NVec2>,
     pub shape: ObjectShape,
+
+}
+
+impl Collision for CSObjectState{
+    fn contact(&self, ops: &CSObjectState) -> Option<ContactInfo> {
+        match (self.shape, ops.shape) {
+            (ObjectShape::Circle(circle), ObjectShape::Circle(circle2)) => {
+                let dist = (self.position - ops.position).magnitude();
+                let penetration = circle.radius + circle2.radius - dist;
+                if penetration > 0.0 {
+                    let delta_pos = (self.position - ops.position);
+                    dbg!(delta_pos.norm());
+                    let contact_normal = if delta_pos.norm() == 0.0 {
+                        vector![0.0,0.0]
+                    } else {delta_pos.normalize()};
+
+
+                    dbg!(self.position, ops.position);
+                    let contact_point = self.position - contact_normal * circle.radius;
+
+                    let contact_momentum = (self.momentum() + ops.momentum()).norm();
+                    Some(ContactInfo {
+                        contact_point,
+                        contact_normal,
+                        penetration,
+                        contact_momentum,
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 impl CSObjectState {

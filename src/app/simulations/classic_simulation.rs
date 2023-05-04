@@ -16,6 +16,7 @@ use crate::app::simulations::state::SimulationState;
 use self::object::builder::CSimObjectBuilder;
 use self::object::state::{CSObjectState, ForceIndex};
 pub use object::CSimObject;
+use crate::app::simulations::classic_simulation::object::state::Collision;
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
 pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];
@@ -123,6 +124,8 @@ impl Simulation for ClassicSimulation {
         _ctx: &egui::Context,
         state: &mut SimulationState,
     ) {
+
+        //TODO: 모바일 환경에서의 터치도 감지하기.
         let simulation_objects = &mut self.objects;
         match self.operation {
             Operation::Navigate => {
@@ -212,27 +215,76 @@ impl Simulation for ClassicSimulation {
             let (front, end) = self.objects.split_at_mut(i - 1);
 
             let Some((obj, rest)) = end.split_first_mut() else {panic!("Cannot Reach")};
-
-            let obj_state = &mut obj.current_state();
-
             obj.update(state);
+
+
+
 
             if let Some(attached_fn) = &obj.attached() {
                 attached_fn(obj.current_state_mut());
             }
 
-            physics_system(obj, self.global_acc_list.iter().sum());
+            let obj_state = obj.current_state_mut();
 
-            for obj2 in rest {
-                let obj2_state = &mut obj2.current_state();
+            {
+                for obj2 in rest {
+                    let obj2_state = obj2.current_state_mut();
 
-                if let Some(contact) = obj_state.shape.contact(
-                    obj_state.position,
-                    &obj2_state.shape,
-                    obj2_state.position,
-                ) {
-                    info!("{:?}", contact);
+                    if let Some(contact) = obj_state.contact(
+                        &obj2_state,
+                    ) {
+                        let obj_vel = contact.contact_momentum / obj_state.mass;
+                        let obj2_vel = contact.contact_momentum / obj2_state.mass;
+
+                        obj_state.velocity += obj_vel * contact.contact_normal;
+                        obj2_state.velocity += obj2_vel *  -contact.contact_normal;
+                        obj_state.position += contact.penetration * contact.contact_normal;
+                        obj2_state.position += contact.penetration * -contact.contact_normal;
+
+                        dbg!(obj_vel, contact.contact_normal);
+
+                        info!("{:?}", obj_vel * contact.contact_normal);
+                    }
                 }
+            }
+
+
+            //
+            { // Physics
+                let global_acc: NVec2 = self.global_acc_list.iter().sum();
+                let last_state = obj.last_state().unwrap();
+                let current_state = obj.current_state();
+                let dt = SIMULATION_TICK;
+
+                obj.current_state_mut().position = {
+                    // ΣF
+                    // ΣF = ma
+                    // a = ΣF / m
+                    // Δv = a * Δt
+                    // Δp = ΣF * Δt
+                    // Δs = v * Δt
+
+                    let current_acc = current_state.acceleration();
+
+                    let Σa = current_acc + global_acc; // Σa
+                    let Δa = current_acc - last_state.acceleration();
+
+                    let Δv = Σa * dt; // 등가속도 운동에서의 보정.
+                    let Δv_error = (Δa * dt) / 2.0;
+                    let Δv = Δv + Δv_error;
+
+                    let v = current_state.velocity;
+
+                    let Δs = v * dt;
+                    let Δs_error = (Δv * dt) / 2.0; // 등가속도 운동에서의 보정.
+                    let Δs = Δs + Δs_error;
+                    // Δs = v * Δt
+
+                    let state = obj.current_state_mut();
+                    state.last_velocity = current_state.velocity;
+                    state.velocity += Δv;
+                    state.position + Δs
+                };
             }
 
             obj.save_state();
@@ -250,43 +302,4 @@ impl Simulation for ClassicSimulation {
     }
 
     fn init(&mut self) {}
-}
-
-//noinspection ALL
-#[allow(non_snake_case)]
-fn physics_system(obj: &mut CSimObject, global_acc: NVec2) {
-    let last_state = obj.last_state().unwrap();
-    let current_state = obj.current_state();
-    let dt = SIMULATION_TICK;
-
-    obj.current_state_mut().position = {
-        // ΣF
-        // ΣF = ma
-        // a = ΣF / m
-        // Δv = a * Δt
-        // Δp = ΣF * Δt
-        // Δs = v * Δt
-
-        let current_acc = current_state.acceleration();
-
-        let Σa = current_acc + global_acc; // Σa
-        let Δa = current_acc - last_state.acceleration();
-
-        let Δv = Σa * dt; // 등가속도 운동에서의 보정.
-        let Δv_error = (Δa * dt) / 2.0;
-        let Δv = Δv + Δv_error;
-
-        let v = current_state.velocity;
-
-        let Δs = v * dt;
-        let Δs_error = (Δv * dt) / 2.0; // 등가속도 운동에서의 보정.
-        let Δs = Δs + Δs_error;
-        // Δs = v * Δt
-
-        obj.current_state_mut().last_velocity = current_state.velocity;
-
-        obj.current_state_mut().velocity += Δv;
-
-        obj.current_state_mut().position + Δs
-    };
 }

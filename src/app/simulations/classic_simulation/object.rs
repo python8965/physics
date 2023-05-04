@@ -6,10 +6,13 @@ pub mod state;
 use getset::Getters;
 
 use state::{CSObjectState, CSObjectStateBuilder};
+use crate::app::NVec2;
 
 use crate::app::simulations::state::SimulationState;
 
-use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
+use crate::app::simulations::classic_simulation::object::shape::{Circle, ContactInfo, ObjectShape};
+
+
 
 pub type AttachedFn = fn(&mut CSObjectState);
 
@@ -24,6 +27,8 @@ pub struct CSimObject {
     #[getset(get = "pub")]
     attached: Option<AttachedFn>,
 }
+
+
 
 impl CSimObject {
     pub fn update(&mut self, sim_state: &SimulationState) {
