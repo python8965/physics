@@ -3,7 +3,10 @@ pub mod sim_state;
 pub mod template;
 
 use crate::app::NVec2;
+use std::iter::Sum;
+use std::ops::Add;
 
+use egui::plot::PlotPoint;
 use egui::{Response, Ui};
 use nalgebra::{vector, SMatrix};
 use tracing::info;
@@ -15,8 +18,8 @@ use crate::app::simulations::state::SimulationState;
 
 use self::object::builder::CSimObjectBuilder;
 use self::object::state::{CSObjectState, ForceIndex};
-pub use object::CSimObject;
 use crate::app::simulations::classic_simulation::object::state::Collision;
+pub use object::CSimObject;
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
 pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];
@@ -124,7 +127,6 @@ impl Simulation for ClassicSimulation {
         _ctx: &egui::Context,
         state: &mut SimulationState,
     ) {
-
         //TODO: 모바일 환경에서의 터치도 감지하기.
         let simulation_objects = &mut self.objects;
         match self.operation {
@@ -144,31 +146,60 @@ impl Simulation for ClassicSimulation {
             }
             Operation::ForceDrag => {
                 if let Some(pointer_pos) = msg.pointer_pos {
-                    if response.drag_started() {
-                        for (index, obj) in simulation_objects.iter().enumerate() {
-                            if let Some(obj_state) = obj.state_at_timestep(state.current_step) {
-                                if is_inside(pointer_pos, obj_state.shape.get_points()) {
-                                    plot.selected_index = index;
-                                    plot.dragging_object = true;
-                                    break;
+                    if response.dragged() {
+                        if plot.dragging_object {
+                            // 드래그 중일 때
+                            let pos = simulation_objects[plot.selected_index]
+                                .current_state()
+                                .position;
+
+                            let selected = &mut simulation_objects[plot.selected_index];
+
+                            let user_vec = vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
+                            selected.current_state_mut().acc_list
+                                [ForceIndex::UserInteraction as usize] = user_vec;
+
+                            dbg!(
+                                selected.current_state().acc_list
+                                    [ForceIndex::UserInteraction as usize]
+                            );
+
+                            dbg!(
+                                selected.current_state().acc_list.len(),
+                                selected.local_timestep(0)
+                            );
+                        } else {
+                            // 드래그 시작할 때
+                            for (index, obj) in simulation_objects.iter().enumerate() {
+                                let obj_state = obj.current_state();
+
+                                {
+                                    if is_inside(
+                                        pointer_pos,
+                                        obj_state
+                                            .shape
+                                            .get_points()
+                                            .into_iter()
+                                            .map(|a| {
+                                                let b = obj_state.position;
+                                                PlotPoint::new(a[0] + b.x, a[1] + b.y)
+                                            })
+                                            .collect::<Vec<_>>(),
+                                    ) {
+                                        plot.selected_index = index;
+                                        plot.dragging_object = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
-                    }
-
-                    if response.dragged() && plot.dragging_object {
-                        let pos = simulation_objects[plot.selected_index]
-                            .current_state()
-                            .position;
-                        let selected = &mut simulation_objects[plot.selected_index];
-
-                        selected.current_state_mut().acc_list
-                            [ForceIndex::UserInteraction as usize] =
-                            vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
+                    } else {
+                        // 드래그 중이 아닐 때
                     }
                 }
 
                 if !response.dragged() && plot.dragging_object {
+                    // 드래그가 끝났을 때
                     let selected = &mut simulation_objects[plot.selected_index];
 
                     selected.current_state_mut().acc_list[ForceIndex::UserInteraction as usize] =
@@ -217,9 +248,6 @@ impl Simulation for ClassicSimulation {
             let Some((obj, rest)) = end.split_first_mut() else {panic!("Cannot Reach")};
             obj.update(state);
 
-
-
-
             if let Some(attached_fn) = &obj.attached() {
                 attached_fn(obj.current_state_mut());
             }
@@ -230,14 +258,12 @@ impl Simulation for ClassicSimulation {
                 for obj2 in rest {
                     let obj2_state = obj2.current_state_mut();
 
-                    if let Some(contact) = obj_state.contact(
-                        &obj2_state,
-                    ) {
+                    if let Some(contact) = obj_state.contact(obj2_state) {
                         let obj_vel = contact.contact_momentum / obj_state.mass;
                         let obj2_vel = contact.contact_momentum / obj2_state.mass;
 
                         obj_state.velocity += obj_vel * contact.contact_normal;
-                        obj2_state.velocity += obj2_vel *  -contact.contact_normal;
+                        obj2_state.velocity += obj2_vel * -contact.contact_normal;
                         obj_state.position += contact.penetration * contact.contact_normal;
                         obj2_state.position += contact.penetration * -contact.contact_normal;
 
@@ -248,22 +274,23 @@ impl Simulation for ClassicSimulation {
                 }
             }
 
-
             //
-            { // Physics
+            {
+                // Physics
                 let global_acc: NVec2 = self.global_acc_list.iter().sum();
+
                 let last_state = obj.last_state().unwrap();
                 let current_state = obj.current_state();
                 let dt = SIMULATION_TICK;
 
-                obj.current_state_mut().position = {
-                    // ΣF
-                    // ΣF = ma
-                    // a = ΣF / m
-                    // Δv = a * Δt
-                    // Δp = ΣF * Δt
-                    // Δs = v * Δt
+                // ΣF
+                // ΣF = ma
+                // a = ΣF / m
+                // Δv = a * Δt
+                // Δp = ΣF * Δt
+                // Δs = v * Δt
 
+                {
                     let current_acc = current_state.acceleration();
 
                     let Σa = current_acc + global_acc; // Σa
@@ -283,8 +310,8 @@ impl Simulation for ClassicSimulation {
                     let state = obj.current_state_mut();
                     state.last_velocity = current_state.velocity;
                     state.velocity += Δv;
-                    state.position + Δs
-                };
+                    state.position += Δs
+                }
             }
 
             obj.save_state();

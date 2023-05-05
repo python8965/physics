@@ -16,11 +16,11 @@ pub struct BasicSimInitObjData {
 }
 
 #[derive(Clone, Debug)]
-pub struct BasicSimInit {
+pub struct ThetaThrowSimInit {
     pub objects: Vec<BasicSimInitObjData>,
 }
 
-impl SimulationInit for BasicSimInit {
+impl SimulationInit for ThetaThrowSimInit {
     fn ui(&mut self, ui: &mut Ui) {
         if ui
             .button("Add Object")
@@ -75,6 +75,6 @@ impl SimulationInit for BasicSimInit {
     }
 
     fn to_simulation_type(&self) -> CSTemplate {
-        CSTemplate::DefaultSim(self.clone())
+        CSTemplate::ThetaThrowSimInit(self.clone())
     }
 }

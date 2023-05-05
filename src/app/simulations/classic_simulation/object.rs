@@ -5,14 +5,14 @@ pub mod state;
 
 use getset::Getters;
 
-use state::{CSObjectState, CSObjectStateBuilder};
 use crate::app::NVec2;
+use state::{CSObjectState, CSObjectStateBuilder};
 
 use crate::app::simulations::state::SimulationState;
 
-use crate::app::simulations::classic_simulation::object::shape::{Circle, ContactInfo, ObjectShape};
-
-
+use crate::app::simulations::classic_simulation::object::shape::{
+    Circle, ContactInfo, ObjectShape,
+};
 
 pub type AttachedFn = fn(&mut CSObjectState);
 
@@ -27,8 +27,6 @@ pub struct CSimObject {
     #[getset(get = "pub")]
     attached: Option<AttachedFn>,
 }
-
-
 
 impl CSimObject {
     pub fn update(&mut self, sim_state: &SimulationState) {
@@ -57,6 +55,8 @@ impl CSimObject {
     }
 
     pub fn current_state(&self) -> CSObjectState {
+        dbg!(self.timestep, self.init_timestep, self.state_timeline.len());
+
         self.local_timestep(self.timestep)
             .and_then(|timestep| self.state_timeline.get(timestep.saturating_sub(1)).cloned())
             .unwrap_or_else(|| CSObjectStateBuilder::new().build())

@@ -3,24 +3,24 @@ use nalgebra::Vector2;
 use std::ops::IndexMut;
 
 use crate::app::graphics::CSPlotObjects;
+use crate::app::simulations::classic_simulation::object::builder::CSimObjectBuilder;
+use crate::app::simulations::classic_simulation::object::state::{CSObjectState, ForceIndex};
 use crate::app::simulations::classic_simulation::template::init::{
-    BasicSimInit, BasicSimInitObjData, SimulationInit,
+    BasicSimInitObjData, SimulationInit, ThetaThrowSimInit,
 };
 use crate::app::simulations::classic_simulation::template::stamp::{
     CSObjectStamp, CSObjectStampResult,
 };
 use crate::app::simulations::classic_simulation::CSimObject;
 use crate::app::NVec2;
-use crate::app::simulations::classic_simulation::object::builder::CSimObjectBuilder;
-use crate::app::simulations::classic_simulation::object::state::{CSObjectState, ForceIndex};
 
 pub mod init;
 pub mod stamp;
 
 #[derive(Clone, Debug)]
 pub enum CSTemplate {
-    DefaultSim(BasicSimInit),
-    ProjectileMotionSim,
+    ThetaThrowSimInit(ThetaThrowSimInit),
+    DefaultSim,
     CircleSim,
 }
 
@@ -31,15 +31,15 @@ impl CSTemplate {
 
     pub fn get_preset_with_ui(self) -> CSPreset {
         match self {
-            CSTemplate::ProjectileMotionSim => projectile_motion_sim(),
-            CSTemplate::DefaultSim(init) => default_sim(init),
+            CSTemplate::DefaultSim => default_sim(),
+            CSTemplate::ThetaThrowSimInit(init) => theta_throw(init),
             CSTemplate::CircleSim => circle_sim(),
         }
     }
 
     pub fn get_data(&self) -> Option<Box<dyn SimulationInit>> {
         match self {
-            CSTemplate::DefaultSim(data) => Some(Box::new(data.clone())),
+            CSTemplate::ThetaThrowSimInit(data) => Some(Box::new(data.clone())),
             _ => None,
         }
     }
@@ -47,7 +47,7 @@ impl CSTemplate {
 
 pub fn get_sim_list() -> [CSTemplate; 3] {
     [
-        CSTemplate::DefaultSim(BasicSimInit {
+        CSTemplate::ThetaThrowSimInit(ThetaThrowSimInit {
             objects: vec![
                 BasicSimInitObjData {
                     mass: 5.0,
@@ -71,7 +71,7 @@ pub fn get_sim_list() -> [CSTemplate; 3] {
                 },
             ],
         }),
-        CSTemplate::ProjectileMotionSim,
+        CSTemplate::DefaultSim,
         CSTemplate::CircleSim,
     ]
 }
@@ -90,7 +90,7 @@ impl Default for CSPreset {
     }
 }
 
-fn default_sim(data: BasicSimInit) -> CSPreset {
+fn theta_throw(data: ThetaThrowSimInit) -> CSPreset {
     // value have any item
     // let force = value.theta * 5.0;
     // force_list.push(force) // how to?
@@ -166,34 +166,6 @@ fn circle_sim() -> CSPreset {
     }
 }
 
-fn projectile_motion_sim() -> CSPreset {
-    let mass = 5.0;
-
-    let sim = vec![2.0, 8.0, 20.0, 30.0, 40.0, 60.0, 100.0]
-        .iter()
-        .map(|x| {
-            CSimObjectBuilder::new(CSObjectState {
-                velocity: NVec2::new(*x, *x),
-
-                mass,
-                position: NVec2::new(1.0, 0.0),
-                ..CSObjectState::default()
-            })
-            .build()
-        })
-        .collect::<Vec<_>>();
-
-    let plot_objects = CSPlotObjects::default().add_static_item(|| {
-        vec![Box::new(Line::new(PlotPoints::from_explicit_callback(
-            |x| x * x,
-            0.0..=50.0,
-            50,
-        )))]
-    });
-
-    CSPreset {
-        simulation_objects: sim,
-        plot_objects,
-        ..CSPreset::default()
-    }
+fn default_sim() -> CSPreset {
+    CSPreset::default()
 }
