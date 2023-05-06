@@ -35,14 +35,11 @@ impl CSimObject {
 
     pub fn save_state(&mut self) {
         self.state_timeline.push(self.current_state());
+        self.timestep += 1;
     }
 
     pub fn local_timestep(&self, timestep: usize) -> Option<usize> {
         timestep.checked_sub(self.init_timestep)
-    }
-
-    pub fn last_state(&self) -> Option<CSObjectState> {
-        self.state_timeline.last().cloned()
     }
 
     pub fn at_timestep(&mut self, timestep: usize) {
@@ -55,16 +52,14 @@ impl CSimObject {
     }
 
     pub fn current_state(&self) -> CSObjectState {
-        dbg!(self.timestep, self.init_timestep, self.state_timeline.len());
-
         self.local_timestep(self.timestep)
-            .and_then(|timestep| self.state_timeline.get(timestep.saturating_sub(1)).cloned())
-            .unwrap_or_else(|| CSObjectStateBuilder::new().build())
+            .and_then(|timestep| self.state_timeline.get(timestep).cloned())
+            .unwrap()
     }
 
     pub fn current_state_mut(&mut self) -> &mut CSObjectState {
         self.local_timestep(self.timestep)
-            .and_then(|timestep| self.state_timeline.get_mut(timestep.saturating_sub(1)))
+            .and_then(|timestep| self.state_timeline.get_mut(timestep))
             .unwrap()
     }
 

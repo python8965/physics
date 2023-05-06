@@ -8,7 +8,9 @@ use instant::Instant;
 
 use crate::app::simulations::classic_simulation::template::init::SimulationInit;
 use crate::app::simulations::classic_simulation::template::{CSPreset, CSTemplate};
-use crate::app::simulations::state::{SimulationSettings, SimulationState, SpecificSimulationSettings};
+use crate::app::simulations::state::{
+    SimulationSettings, SimulationState, SpecificSimulationSettings,
+};
 
 pub const SIMULATION_TICK: f64 = 1.0 / 240.0;
 
@@ -80,8 +82,10 @@ impl SimulationManager {
         self.pause();
         self.simulation_plot = SimPlot::new(plot_objects);
         let simulation: Box<dyn Simulation> = Box::new(ClassicSimulation::from(simulation_objects));
-        self.sim_state.settings =  SimulationSettings::new(SpecificSimulationSettings::CSimSettings(CSimSettings::default()));
-        
+        self.sim_state.settings = SimulationSettings::new(
+            SpecificSimulationSettings::CSimSettings(CSimSettings::default()),
+        );
+
         self.simulation.replace(simulation);
 
         self.sim_state.reset();
@@ -108,10 +112,6 @@ impl SimulationManager {
     pub(super) fn resume(&mut self) {
         if self.is_sim_initializing {
             self.is_sim_initializing = false;
-
-            if let Some(simulation) = self.simulation.as_mut() {
-                simulation.init();
-            }
         }
 
         if self.sim_state.max_step == self.sim_state.current_step {

@@ -53,8 +53,6 @@ pub trait Simulation: Send + Sync {
     fn at_time_step(&mut self, step: usize);
 
     fn get_children(&self) -> &Vec<CSimObject>;
-
-    fn init(&mut self);
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -230,6 +228,7 @@ impl Simulation for ClassicSimulation {
     fn step(&mut self, state: &mut SimulationState) {
         puffin::profile_scope!("ClassicSimulation::step");
 
+        //TODO: 이거 더 좋은 방법 없나?
         if let Some(settings) = state.settings.specific.as_c_sim_settings_mut() {
             if let Some(is_grav) = settings.gravity.get() {
                 if is_grav {
@@ -242,78 +241,24 @@ impl Simulation for ClassicSimulation {
 
         let length = self.objects.len();
 
+        //충돌 처리 부분
         for i in 1..length + 1 {
-            let (front, end) = self.objects.split_at_mut(i - 1);
+            let (_front, end) = self.objects.split_at_mut(i - 1);
 
             let Some((obj, rest)) = end.split_first_mut() else {panic!("Cannot Reach")};
-            obj.update(state);
 
+            for obj2 in rest {
+                collision(obj, obj2);
+            }
+        }
+
+        //물리 처리 부분
+        for obj in self.objects.iter_mut() {
             if let Some(attached_fn) = &obj.attached() {
                 attached_fn(obj.current_state_mut());
             }
 
-            let obj_state = obj.current_state_mut();
-
-            {
-                for obj2 in rest {
-                    let obj2_state = obj2.current_state_mut();
-
-                    if let Some(contact) = obj_state.contact(obj2_state) {
-                        let obj_vel = contact.contact_momentum / obj_state.mass;
-                        let obj2_vel = contact.contact_momentum / obj2_state.mass;
-
-                        obj_state.velocity += obj_vel * contact.contact_normal;
-                        obj2_state.velocity += obj2_vel * -contact.contact_normal;
-                        obj_state.position += contact.penetration * contact.contact_normal;
-                        obj2_state.position += contact.penetration * -contact.contact_normal;
-
-                        dbg!(obj_vel, contact.contact_normal);
-
-                        info!("{:?}", obj_vel * contact.contact_normal);
-                    }
-                }
-            }
-
-            //
-            {
-                // Physics
-                let global_acc: NVec2 = self.global_acc_list.iter().sum();
-
-                let last_state = obj.last_state().unwrap();
-                let current_state = obj.current_state();
-                let dt = SIMULATION_TICK;
-
-                // ΣF
-                // ΣF = ma
-                // a = ΣF / m
-                // Δv = a * Δt
-                // Δp = ΣF * Δt
-                // Δs = v * Δt
-
-                {
-                    let current_acc = current_state.acceleration();
-
-                    let Σa = current_acc + global_acc; // Σa
-                    let Δa = current_acc - last_state.acceleration();
-
-                    let Δv = Σa * dt; // 등가속도 운동에서의 보정.
-                    let Δv_error = (Δa * dt) / 2.0;
-                    let Δv = Δv + Δv_error;
-
-                    let v = current_state.velocity;
-
-                    let Δs = v * dt;
-                    let Δs_error = (Δv * dt) / 2.0; // 등가속도 운동에서의 보정.
-                    let Δs = Δs + Δs_error;
-                    // Δs = v * Δt
-
-                    let state = obj.current_state_mut();
-                    state.last_velocity = current_state.velocity;
-                    state.velocity += Δv;
-                    state.position += Δs
-                }
-            }
-
+            physics(obj, &self.global_acc_list);
             obj.save_state();
         }
     }
@@ -327,6 +272,59 @@ impl Simulation for ClassicSimulation {
     fn get_children(&self) -> &Vec<CSimObject> {
         &self.objects
     }
+}
 
-    fn init(&mut self) {}
+fn collision(obj: &mut CSimObject, obj2: &mut CSimObject) {
+    let obj_state = obj.current_state_mut();
+    let obj2_state = obj2.current_state_mut();
+
+    if let Some(contact) = obj_state.contact(obj2_state) {
+        let obj_vel = contact.contact_momentum / obj_state.mass;
+        let obj2_vel = contact.contact_momentum / obj2_state.mass;
+
+        obj_state.velocity += obj_vel * contact.contact_normal;
+        obj2_state.velocity += obj2_vel * -contact.contact_normal;
+        obj_state.position += contact.penetration * contact.contact_normal;
+        obj2_state.position += contact.penetration * -contact.contact_normal;
+
+        dbg!(obj_vel, contact.contact_normal);
+
+        info!("{:?}", obj_vel * contact.contact_normal);
+    }
+}
+
+fn physics(obj: &mut CSimObject, global_acc_list: &[NVec2]) {
+    // Physics
+    let global_acc: NVec2 = global_acc_list.iter().sum();
+    let state = obj.current_state_mut();
+    let dt = SIMULATION_TICK;
+
+    // ΣF
+    // ΣF = ma
+    // a = ΣF / m
+    // Δv = a * Δt
+    // Δp = ΣF * Δt
+    // Δs = v * Δt
+
+    {
+        let current_acc = state.acceleration();
+
+        let Σa = current_acc + global_acc; // Σa
+                                           // let Δa = current_acc - last_state.acceleration();
+
+        let Δv = Σa * dt; // 등가속도 운동에서의 보정.
+                          // let Δv_error = (Δa * dt) / 2.0;
+                          // let Δv = Δv + Δv_error;
+
+        let v = state.velocity;
+
+        let Δs = v * dt;
+        let Δs_error = (Δv * dt) / 2.0; // 등가속도 운동에서의 보정.
+        let Δs = Δs + Δs_error;
+        // Δs = v * Δt
+
+        state.last_velocity = state.velocity;
+        state.velocity += Δv;
+        state.position += Δs
+    }
 }
