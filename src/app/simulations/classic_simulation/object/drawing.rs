@@ -25,7 +25,6 @@ fn get_sized_text(zoom: f64, text: String, scale: f64) -> RichText {
     }
 }
 
-
 // 벡터의 화살표 모양을 반환한다.
 fn get_info_vector(
     zoom: f64,

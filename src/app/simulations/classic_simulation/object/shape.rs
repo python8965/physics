@@ -1,15 +1,13 @@
+use crate::app::simulations::classic_simulation::CSimObject;
 use crate::app::NVec2;
 use egui::plot::PlotPoints;
 use std::f64::consts::TAU;
 use std::ops::{Div, DivAssign};
-use crate::app::simulations::classic_simulation::CSimObject;
 
 pub trait Shape {
     fn get_points(&self) -> Vec<[f64; 2]>;
     fn get_plot_points(&self, pos: NVec2) -> PlotPoints;
 }
-
-
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
@@ -27,16 +25,11 @@ impl Default for ObjectShape {
 #[allow(dead_code)]
 impl ObjectShape {
     pub fn circle(radius: f64) -> Self {
-        Self::Circle(Circle {
-            radius,
-        })
+        Self::Circle(Circle { radius })
     }
 
     pub fn rect(width: f64, height: f64) -> Self {
-        Self::Rect(Rect {
-            width,
-            height,
-        })
+        Self::Rect(Rect { width, height })
     }
 
     pub fn get_points(&self) -> Vec<[f64; 2]> {
@@ -83,12 +76,7 @@ impl Shape for Circle {
 
     fn get_plot_points(&self, pos: NVec2) -> PlotPoints {
         PlotPoints::from_parametric_callback(
-            move |t| {
-                (
-                    t.sin() * self.radius + pos.x,
-                    t.cos() * self.radius + pos.y,
-                )
-            },
+            move |t| (t.sin() * self.radius + pos.x, t.cos() * self.radius + pos.y),
             0.0..TAU,
             Self::DEFAULT_RESOLUTION as usize,
         )
@@ -118,7 +106,6 @@ impl Circle {
 
         self._get_points(resolution)
     }
-
 }
 
 #[derive(Debug, Clone, Copy)]

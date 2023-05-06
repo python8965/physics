@@ -80,10 +80,8 @@ impl SimPlot {
             let obj_state = &mut obj.current_state();
 
             plot_ui.polygon(
-                Polygon::new(
-                    obj_state.shape.get_plot_points(obj_state.position)
-                )
-                .color(PlotColor::Object.get_color()),
+                Polygon::new(obj_state.shape.get_plot_points(obj_state.position))
+                    .color(PlotColor::Object.get_color()),
             );
 
             self.draw_object(obj, state, plot_ui, index);

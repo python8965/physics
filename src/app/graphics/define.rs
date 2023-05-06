@@ -1,5 +1,3 @@
-
-
 use eframe::epaint::Color32;
 use egui::plot::{Arrows, Line, PlotImage, PlotUi, Points, Polygon, Text};
 
