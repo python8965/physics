@@ -45,3 +45,4 @@ PATCH++ when BUGFIXES/MINOR CHANGE
 - simulation timeline added! (now we can see simulation history)
 - simulation timeline can be controlled by ui
 - object can now collide with other object - basic, need fix
+- various fixes
