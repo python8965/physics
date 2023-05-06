@@ -23,7 +23,6 @@ pub type NVec2 = Vector2<Float>;
 pub struct State {
     simulation_manager: SimulationManager,
     music_player: MusicPlayer,
-    image_manager: ImageManager,
     frame_history: FrameHistory,
 }
 
@@ -42,9 +41,7 @@ impl State {
         let ctx = &_cc.egui_ctx;
 
         new_with_context(ctx);
-        let image_manager = ImageManager::new(ctx);
         Self {
-            image_manager,
             ..Default::default()
         }
     }

@@ -9,7 +9,6 @@ pub enum PlotColor {
     ForceVector,
     SigmaForceVector,
     TraceLine,
-    Equation,
     Stamp,
     StampText,
 }
@@ -22,7 +21,6 @@ impl PlotColor {
             PlotColor::ForceVector => Color32::RED,
             PlotColor::SigmaForceVector => Color32::DARK_RED,
             PlotColor::TraceLine => Color32::GOLD,
-            PlotColor::Equation => Color32::WHITE,
             PlotColor::Stamp => Color32::YELLOW,
             PlotColor::StampText => Color32::GREEN,
         }
@@ -33,7 +31,6 @@ pub enum PlotTextSize {
     Small,
     Medium,
     Large,
-    Equation,
 }
 
 impl PlotTextSize {
@@ -42,7 +39,6 @@ impl PlotTextSize {
             PlotTextSize::Small => 1.0,
             PlotTextSize::Medium => 2.0,
             PlotTextSize::Large => 5.0,
-            PlotTextSize::Equation => 10.0,
         }
     }
 }

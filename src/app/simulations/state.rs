@@ -83,7 +83,6 @@ impl SimulationSettings {
 #[derive(Clone, Debug)]
 pub enum SpecificSimulationSettings {
     CSimSettings(CSimSettings),
-    BSimSettings(BSimSettings),
     None,
 }
 
@@ -100,7 +99,6 @@ impl SpecificSimulationSettings {
             Self::CSimSettings(settings) => {
                 settings.ui(ui);
             }
-            SpecificSimulationSettings::BSimSettings(_b) => {}
         }
     }
 }

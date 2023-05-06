@@ -5,12 +5,9 @@ pub mod state;
 
 use getset::Getters;
 
-
-use state::{CSObjectState};
+use state::CSObjectState;
 
 use crate::app::simulations::state::SimulationState;
-
-
 
 pub type AttachedFn = fn(&mut CSObjectState);
 
@@ -27,10 +24,6 @@ pub struct CSimObject {
 }
 
 impl CSimObject {
-    pub fn update(&mut self, sim_state: &SimulationState) {
-        self.timestep = sim_state.current_step;
-    }
-
     pub fn save_state(&mut self) {
         self.state_timeline.push(self.current_state());
         self.timestep += 1;

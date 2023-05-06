@@ -3,8 +3,6 @@ pub mod sim_state;
 pub mod template;
 
 use crate::app::NVec2;
-use std::iter::Sum;
-
 
 use egui::plot::PlotPoint;
 use egui::{Response, Ui};
