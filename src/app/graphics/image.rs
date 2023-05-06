@@ -32,7 +32,7 @@ impl ImageManager {
             TextureOptions::default(),
         );
 
-        let texture = ctx.load_texture("plot_eq1", egui::ColorImage::example(), Default::default());
+        let texture = ctx.load_texture("plot_eq1", ColorImage::example(), Default::default());
 
         Self {
             texture: vec![texture],

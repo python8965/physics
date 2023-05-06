@@ -31,11 +31,11 @@ pub enum GlobalForceSlot {
 }
 
 pub trait Simulation: Send + Sync {
-    fn inspection_ui(&mut self, ui: &mut egui::Ui) {
+    fn inspection_ui(&mut self, ui: &mut Ui) {
         ui.label("No inspection UI");
     }
 
-    fn operation_ui(&mut self, ui: &mut egui::Ui) {
+    fn operation_ui(&mut self, ui: &mut Ui) {
         ui.label("No operations UI");
     }
 
@@ -43,7 +43,7 @@ pub trait Simulation: Send + Sync {
         &mut self,
         plot: &mut PlotData,
         input_msg: InputMessage,
-        response: egui::Response,
+        response: Response,
         ctx: &egui::Context,
         state: &mut SimulationState,
     );
@@ -293,6 +293,7 @@ fn collision(obj: &mut CSimObject, obj2: &mut CSimObject) {
     }
 }
 
+//
 fn physics(obj: &mut CSimObject, global_acc_list: &[NVec2]) {
     // Physics
     let global_acc: NVec2 = global_acc_list.iter().sum();
@@ -309,22 +310,22 @@ fn physics(obj: &mut CSimObject, global_acc_list: &[NVec2]) {
     {
         let current_acc = state.acceleration();
 
-        let Σa = current_acc + global_acc; // Σa
-                                           // let Δa = current_acc - last_state.acceleration();
+        let sum_acc = current_acc + global_acc; // Σa
+                                                // let Δa = current_acc - last_state.acceleration();
 
-        let Δv = Σa * dt; // 등가속도 운동에서의 보정.
-                          // let Δv_error = (Δa * dt) / 2.0;
-                          // let Δv = Δv + Δv_error;
+        let delta_v = sum_acc * dt; // 등가속도 운동에서의 보정.
+                                    // let Δv_error = (Δa * dt) / 2.0;
+                                    // let Δv = Δv + Δv_error;
 
         let v = state.velocity;
 
-        let Δs = v * dt;
-        let Δs_error = (Δv * dt) / 2.0; // 등가속도 운동에서의 보정.
-        let Δs = Δs + Δs_error;
+        let delta_pos = v * dt;
+        let dpos_error = (delta_v * dt) / 2.0; // 등가속도 운동에서의 보정.
+        let delta_pos = delta_pos + dpos_error;
         // Δs = v * Δt
 
         state.last_velocity = state.velocity;
-        state.velocity += Δv;
-        state.position += Δs
+        state.velocity += delta_v;
+        state.position += delta_pos
     }
 }
