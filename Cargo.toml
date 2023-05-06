@@ -1,6 +1,6 @@
 [package]
 name = "physics"
-version = "0.3.1"
+version = "0.5.0"
 authors = ["AKETON <python8965@gmail.com>"]
 edition = "2021"
 rust-version = "1.65"

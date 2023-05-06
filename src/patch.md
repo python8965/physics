@@ -40,3 +40,8 @@ PATCH++ when BUGFIXES/MINOR CHANGE
 - add simulation stamp (conditional simulation object marking)
 - simulation main logic fixed (now Vec<Force> is changed by Vec<Velocity>)
 - various bug fixes
+
+0.5.0
+- simulation timeline added! (now we can see simulation history)
+- simulation timeline can be controlled by ui
+- object can now collide with other object - basic, need fix
