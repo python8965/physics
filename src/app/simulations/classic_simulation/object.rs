@@ -5,14 +5,12 @@ pub mod state;
 
 use getset::Getters;
 
-use crate::app::NVec2;
-use state::{CSObjectState, CSObjectStateBuilder};
+
+use state::{CSObjectState};
 
 use crate::app::simulations::state::SimulationState;
 
-use crate::app::simulations::classic_simulation::object::shape::{
-    Circle, ContactInfo, ObjectShape,
-};
+
 
 pub type AttachedFn = fn(&mut CSObjectState);
 

@@ -1,5 +1,5 @@
 use crate::app::simulations::classic_simulation::object::shape::{ContactInfo, ObjectShape};
-use crate::app::simulations::classic_simulation::CSimObject;
+
 use crate::app::NVec2;
 use nalgebra::vector;
 
@@ -31,7 +31,7 @@ impl Collision for CSObjectState {
                 let dist = (self.position - ops.position).magnitude();
                 let penetration = circle.radius + circle2.radius - dist;
                 if penetration > 0.0 {
-                    let delta_pos = (self.position - ops.position);
+                    let delta_pos = self.position - ops.position;
                     dbg!(delta_pos.norm());
                     let contact_normal = if delta_pos.norm() == 0.0 {
                         vector![0.0, 0.0]

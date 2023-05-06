@@ -1,8 +1,8 @@
-use crate::app::simulations::classic_simulation::CSimObject;
+
 use crate::app::NVec2;
 use egui::plot::PlotPoints;
 use std::f64::consts::TAU;
-use std::ops::{Div, DivAssign};
+
 
 pub trait Shape {
     fn get_points(&self) -> Vec<[f64; 2]>;
