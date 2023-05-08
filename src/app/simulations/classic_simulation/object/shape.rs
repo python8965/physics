@@ -1,8 +1,6 @@
-
 use crate::app::NVec2;
 use egui::plot::PlotPoints;
 use std::f64::consts::TAU;
-
 
 pub trait Shape {
     fn get_points(&self) -> Vec<[f64; 2]>;
@@ -52,8 +50,8 @@ pub struct ContactInfo {
     pub contact_point: NVec2,
     pub contact_normal: NVec2,
     pub penetration: f64,
-
-    pub contact_momentum: f64,
+    pub obj1_velocity: NVec2,
+    pub obj2_velocity: NVec2,
 }
 
 #[derive(Debug, Clone, Copy)]

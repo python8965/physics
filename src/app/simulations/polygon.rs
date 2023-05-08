@@ -1,7 +1,6 @@
 use egui::plot::PlotPoint;
 
 pub fn is_inside(pos: PlotPoint, shape_points: Vec<impl Into<PlotPoint> + Clone>) -> bool {
-    dbg!(&pos);
     let mut contact = 0;
     for (p1, p2) in shape_points
         .windows(2)

@@ -30,24 +30,42 @@ impl Collision for CSObjectState {
             (ObjectShape::Circle(circle), ObjectShape::Circle(circle2)) => {
                 let dist = (self.position - ops.position).magnitude();
                 let penetration = circle.radius + circle2.radius - dist;
+
                 if penetration > 0.0 {
                     let delta_pos = self.position - ops.position;
-                    dbg!(delta_pos.norm());
+
                     let contact_normal = if delta_pos.norm() == 0.0 {
                         vector![0.0, 0.0]
                     } else {
                         delta_pos.normalize()
                     };
 
-                    dbg!(self.position, ops.position);
                     let contact_point = self.position - contact_normal * circle.radius;
 
-                    let contact_momentum = (self.momentum() + ops.momentum()).norm();
+                    //
+                    let scale1 = contact_normal.yx().dot(&self.momentum())
+                        / contact_normal.yx().dot(&contact_normal);
+
+                    let scale2 = contact_normal.yx().dot(&ops.momentum())
+                        / contact_normal.yx().dot(&contact_normal);
+
+                    dbg!(scale1, scale2);
+
+                    let obj1_scale = scale1;
+                    let obj2_scale = scale2;
+
+                    let obj1_momentum = contact_normal * obj1_scale;
+                    let obj2_momentum = contact_normal * obj2_scale;
+
+                    dbg!(contact_normal, obj1_momentum, obj2_momentum);
+
                     Some(ContactInfo {
                         contact_point,
                         contact_normal,
                         penetration,
-                        contact_momentum,
+
+                        obj1_velocity: obj1_momentum,
+                        obj2_velocity: obj2_momentum,
                     })
                 } else {
                     None

@@ -154,16 +154,6 @@ impl Simulation for ClassicSimulation {
                             let user_vec = vector![pointer_pos.x - pos.x, pointer_pos.y - pos.y];
                             selected.current_state_mut().acc_list
                                 [ForceIndex::UserInteraction as usize] = user_vec;
-
-                            dbg!(
-                                selected.current_state().acc_list
-                                    [ForceIndex::UserInteraction as usize]
-                            );
-
-                            dbg!(
-                                selected.current_state().acc_list.len(),
-                                selected.local_timestep(0)
-                            );
                         } else {
                             // 드래그 시작할 때
                             for (index, obj) in simulation_objects.iter().enumerate() {
@@ -277,17 +267,10 @@ fn collision(obj: &mut CSimObject, obj2: &mut CSimObject) {
     let obj2_state = obj2.current_state_mut();
 
     if let Some(contact) = obj_state.contact(obj2_state) {
-        let obj_vel = contact.contact_momentum / obj_state.mass;
-        let obj2_vel = contact.contact_momentum / obj2_state.mass;
-
-        obj_state.velocity += obj_vel * contact.contact_normal;
-        obj2_state.velocity += obj2_vel * -contact.contact_normal;
-        obj_state.position += contact.penetration * contact.contact_normal;
-        obj2_state.position += contact.penetration * -contact.contact_normal;
-
-        dbg!(obj_vel, contact.contact_normal);
-
-        info!("{:?}", obj_vel * contact.contact_normal);
+        obj_state.velocity += contact.obj1_velocity;
+        obj2_state.velocity += contact.obj2_velocity;
+        // obj_state.position += contact.penetration * contact.contact_normal;
+        // obj2_state.position += contact.penetration * -contact.contact_normal;
     }
 }
 
