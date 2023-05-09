@@ -345,7 +345,7 @@ impl eframe::App for State {
 
             egui::warn_if_debug_build(ui);
 
-            if let (Some(simulation), simulation_plot, state) =
+            if let (Some(simulation), simulation_plot, state, debug_store) =
                 self.simulation_manager.get_simulation()
             {
                 let legend = Legend::default();
@@ -371,7 +371,7 @@ impl eframe::App for State {
 
                 let response = plot.show(ui, |plot_ui| {
                     state.update_simulation_state(plot_ui);
-                    simulation_plot.draw(simulation, plot_ui, state);
+                    simulation_plot.draw(simulation, plot_ui, state, debug_store);
 
                     InputMessage {
                         clicked: plot_ui.plot_clicked(),

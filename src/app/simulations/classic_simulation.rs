@@ -2,11 +2,13 @@ pub mod object;
 pub mod sim_state;
 pub mod template;
 
+use std::sync::{Arc, Mutex};
 use crate::app::NVec2;
 
 use egui::plot::PlotPoint;
 use egui::{Response, Ui};
 use nalgebra::{vector, SMatrix};
+use once_cell::sync::Lazy;
 use tracing::info;
 
 use crate::app::graphics::plot::{InputMessage, PlotData};
@@ -19,6 +21,7 @@ use self::object::state::{CSObjectState, ForceIndex};
 use crate::app::simulations::classic_simulation::object::state::Collision;
 pub use object::CSimObject;
 use crate::app::graphics::define::BoxedPlotDraw;
+use crate::app::manager::debug::DebugShapeStorage;
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
 pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];
@@ -47,7 +50,7 @@ pub trait Simulation: Send + Sync {
         state: &mut SimulationState,
     );
 
-    fn step(&mut self, state: &mut SimulationState);
+    fn step(&mut self, state: &mut SimulationState, debug_store: &mut DebugShapeStorage);
 
     fn at_time_step(&mut self, step: usize);
 
@@ -214,7 +217,7 @@ impl Simulation for ClassicSimulation {
         }
     }
 
-    fn step(&mut self, state: &mut SimulationState) {
+    fn step(&mut self, state: &mut SimulationState, debug_store: &mut DebugShapeStorage) {
         puffin::profile_scope!("ClassicSimulation::step");
 
         //TODO: 이거 더 좋은 방법 없나?
@@ -250,6 +253,8 @@ impl Simulation for ClassicSimulation {
             physics(obj, &self.global_acc_list);
             obj.save_state();
         }
+
+        debug_store.update();
     }
 
     fn at_time_step(&mut self, step: usize) {

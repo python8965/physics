@@ -1,10 +1,12 @@
+use std::cell::RefCell;
 use eframe::epaint::FontFamily;
 
 use egui::plot::{Line, PlotBounds, PlotPoint, PlotUi, Polygon, Text};
 use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
 
-use crate::app::graphics::define::{PlotColor, PlotDrawHelper};
+use crate::app::graphics::define::{BoxedPlotDraw, PlotColor, PlotDrawHelper};
 use crate::app::graphics::CSPlotObjects;
+use crate::app::manager::debug::DebugShapeStorage;
 
 use crate::app::simulations::classic_simulation::{CSimObject, Simulation};
 use crate::app::simulations::state::SimulationState;
@@ -49,6 +51,7 @@ impl SimPlot {
         simulation: &Box<dyn Simulation>,
         plot_ui: &mut PlotUi,
         state: &mut SimulationState,
+        debug_store: &mut DebugShapeStorage,
     ) {
         puffin::profile_scope!("draw_plot");
 
@@ -59,6 +62,10 @@ impl SimPlot {
             plot_ui.set_plot_bounds(PlotBounds::from_min_max([-100.0, -100.0], [100.0, 100.0]));
             state.sim_started = true;
         }
+
+        debug_store.get_debug_shape(state.current_step).iter().for_each(|shape| {
+            shape.draw(plot_ui);
+        });
 
         let simulation_objects = simulation.get_children();
 
@@ -156,9 +163,9 @@ impl SimPlot {
         obj: &CSimObject,
         sim_state: &SimulationState,
         plot_ui: &mut PlotUi,
-        index: usize,
+        timestep: usize,
     ) {
-        obj.draw(sim_state, index, self.plot_objects.get_stamps())
+        obj.draw(sim_state, timestep, self.plot_objects.get_stamps())
             .into_iter()
             .for_each(|item| item.draw(plot_ui));
     }

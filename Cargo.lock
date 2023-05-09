@@ -1786,6 +1786,7 @@ dependencies = [
  "image",
  "instant",
  "nalgebra",
+ "once_cell",
  "paste",
  "puffin 0.15.0",
  "puffin_egui",
