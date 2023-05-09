@@ -11,6 +11,8 @@ use crate::app::simulations::state::SimulationState;
 
 pub mod object;
 
+
+
 pub struct PlotData {
     pub near_value: f64,
     pub nearest_label: String,

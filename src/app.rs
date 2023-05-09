@@ -146,6 +146,22 @@ impl eframe::App for State {
                 {
                     self.simulation_manager.timestep_changed();
                 }
+
+                if ui.add_enabled(
+                    self.simulation_manager.timestep() != 0,
+                    egui::Button::new("Prev")
+                ).clicked() {
+                    *self.simulation_manager.current_timestep_mut() -= 1;
+                    self.simulation_manager.timestep_changed();
+                }
+
+                if ui.add_enabled(
+                    true,
+                    egui::Button::new("Next")
+                ).clicked() {
+                    *self.simulation_manager.current_timestep_mut() += 1;
+                    self.simulation_manager.timestep_changed();
+                }
             });
         });
 

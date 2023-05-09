@@ -18,6 +18,7 @@ use self::object::builder::CSimObjectBuilder;
 use self::object::state::{CSObjectState, ForceIndex};
 use crate::app::simulations::classic_simulation::object::state::Collision;
 pub use object::CSimObject;
+use crate::app::graphics::define::BoxedPlotDraw;
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
 pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];

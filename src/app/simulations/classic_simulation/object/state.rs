@@ -51,21 +51,21 @@ impl Collision for CSObjectState {
 
                     dbg!(scale1, scale2);
 
-                    let obj1_scale = scale1;
-                    let obj2_scale = scale2;
+                    let obj1_scale = scale2;
+                    let obj2_scale = scale1;
 
-                    let obj1_momentum = contact_normal * obj1_scale;
-                    let obj2_momentum = contact_normal * obj2_scale;
+                    let obj1_velocity = contact_normal * obj1_scale / self.mass;
+                    let obj2_velocity = -contact_normal * obj2_scale / ops.mass;
 
-                    dbg!(contact_normal, obj1_momentum, obj2_momentum);
+                    dbg!(contact_normal, obj1_velocity, obj2_velocity);
 
                     Some(ContactInfo {
                         contact_point,
                         contact_normal,
                         penetration,
 
-                        obj1_velocity: obj1_momentum,
-                        obj2_velocity: obj2_momentum,
+                        obj1_velocity,
+                        obj2_velocity
                     })
                 } else {
                     None
