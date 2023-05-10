@@ -2,7 +2,6 @@ use crate::app::NVec2;
 use egui::plot::PlotPoints;
 use std::f64::consts::TAU;
 
-
 pub trait Shape {
     fn get_points(&self) -> Vec<[f64; 2]>;
     fn get_plot_points(&self, pos: NVec2) -> PlotPoints;

@@ -1,18 +1,14 @@
-
-use egui::plot::{Arrows};
-use crate::app::simulations::classic_simulation::object::shape::{ObjectShape};
-
-use crate::app::NVec2;
-use nalgebra::{vector};
-use crate::app::graphics::define::{ PlotItem};
 use crate::app::simulations::classic_simulation::event::CollisionEvent;
+use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
+use crate::app::NVec2;
+use nalgebra::vector;
 
-trait ListAdd<Rhs = Self> {
+pub trait ListAdd<Rhs = Self> {
     type Output;
     fn add(self, rhs: Rhs) -> Self::Output;
 }
 
-impl ListAdd for [f64; 2]{
+impl ListAdd for [f64; 2] {
     type Output = [f64; 2];
 
     fn add(self, rhs: [f64; 2]) -> Self {
@@ -43,8 +39,7 @@ pub struct CSObjectState {
 
 impl Collision for CSObjectState {
     fn contact(&self, ops: &CSObjectState) -> Option<CollisionEvent> {
-        let mut shape = None;
-        let info = match (self.shape, ops.shape) {
+        match (self.shape, ops.shape) {
             (ObjectShape::Circle(circle), ObjectShape::Circle(circle2)) => {
                 let dist = (self.position - ops.position).magnitude();
                 let penetration = circle.radius + circle2.radius - dist;
@@ -72,32 +67,6 @@ impl Collision for CSObjectState {
                     let obj1_velocity = contact_normal * obj1_scale / self.mass;
                     let obj2_velocity = contact_normal * -obj2_scale / ops.mass;
 
-                    let _raw_contact_point = contact_point.data.0[0];
-
-                    let raw_self_position = self.position.data.0[0];
-                    let raw_ops_position = ops.position.data.0[0];
-
-                    shape = Some(Box::new(move ||{
-                        vec![
-                            PlotItem::Arrows(Arrows::new(vec![raw_self_position], vec![
-                                raw_ops_position
-                            ]).name("contact_normal")),
-                            PlotItem::Arrows(Arrows::new(vec![
-                                raw_self_position
-
-                            ], vec![
-
-                                raw_self_position.add(obj1_velocity.data.0[0]),
-                            ]).name("obj1_velocity")),
-                            PlotItem::Arrows(Arrows::new(vec![
-                                raw_ops_position
-
-                            ], vec![
-                                raw_ops_position.add(obj2_velocity.data.0[0]),
-                            ]).name("obj2_velocity")),
-                        ]
-                    }));
-
                     Some(CollisionEvent {
                         contact_point,
                         contact_normal,
@@ -107,16 +76,14 @@ impl Collision for CSObjectState {
                         obj2_state: ops.clone(),
 
                         obj1_velocity,
-                        obj2_velocity
+                        obj2_velocity,
                     })
                 } else {
                     None
                 }
             }
             _ => None,
-        };
-
-        info
+        }
     }
 }
 

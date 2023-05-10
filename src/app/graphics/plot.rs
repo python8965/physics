@@ -1,18 +1,15 @@
-
 use eframe::epaint::FontFamily;
 
 use egui::plot::{Line, PlotBounds, PlotPoint, PlotUi, Polygon, Text};
 use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
 
-use crate::app::graphics::define::{PlotColor};
+use crate::app::graphics::define::PlotColor;
 use crate::app::graphics::CSPlotObjects;
 
 use crate::app::simulations::classic_simulation::{CSimObject, Simulation};
 use crate::app::simulations::state::SimulationState;
 
 pub mod object;
-
-
 
 pub struct PlotData {
     pub near_value: f64,
@@ -61,9 +58,11 @@ impl SimPlot {
             state.sim_started = true;
         }
 
-        simulation.get_events(state.current_step).get_shapes().into_iter().for_each(|shape|{
-            shape.draw(plot_ui);
-        });
+        if let Some(x) = simulation.get_events(state.current_step) {
+            x.get_shapes().into_iter().for_each(|shape| {
+                shape.draw(plot_ui);
+            })
+        }
 
         let simulation_objects = simulation.get_children();
 
@@ -74,7 +73,10 @@ impl SimPlot {
                     .current_state()
                     .position;
 
-                plot_ui.line(Line::new(vec![[pos.x, pos.y], [pointer_pos.x, pointer_pos.y]]));
+                plot_ui.line(Line::new(vec![
+                    [pos.x, pos.y],
+                    [pointer_pos.x, pointer_pos.y],
+                ]));
             }
         }
 
