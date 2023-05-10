@@ -7,7 +7,7 @@ use getset::Getters;
 
 use state::CSObjectState;
 
-use crate::app::simulations::state::SimulationState;
+
 
 pub type AttachedFn = fn(&mut CSObjectState);
 

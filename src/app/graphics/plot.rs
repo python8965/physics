@@ -1,12 +1,11 @@
-use std::cell::RefCell;
+
 use eframe::epaint::FontFamily;
 
 use egui::plot::{Line, PlotBounds, PlotPoint, PlotUi, Polygon, Text};
 use egui::{Align2, InnerResponse, Pos2, RichText, TextStyle};
 
-use crate::app::graphics::define::{BoxedPlotDraw, PlotColor, PlotDrawHelper};
+use crate::app::graphics::define::{PlotColor};
 use crate::app::graphics::CSPlotObjects;
-use crate::app::manager::debug::DebugShapeStorage;
 
 use crate::app::simulations::classic_simulation::{CSimObject, Simulation};
 use crate::app::simulations::state::SimulationState;
@@ -51,7 +50,6 @@ impl SimPlot {
         simulation: &Box<dyn Simulation>,
         plot_ui: &mut PlotUi,
         state: &mut SimulationState,
-        debug_store: &mut DebugShapeStorage,
     ) {
         puffin::profile_scope!("draw_plot");
 
@@ -63,7 +61,7 @@ impl SimPlot {
             state.sim_started = true;
         }
 
-        debug_store.get_debug_shape(state.current_step).iter().for_each(|shape| {
+        simulation.get_events(state.current_step).get_shapes().into_iter().for_each(|shape|{
             shape.draw(plot_ui);
         });
 
@@ -76,7 +74,7 @@ impl SimPlot {
                     .current_state()
                     .position;
 
-                Line::new(vec![[pos.x, pos.y], [pointer_pos.x, pointer_pos.y]]).draw(plot_ui);
+                plot_ui.line(Line::new(vec![[pos.x, pos.y], [pointer_pos.x, pointer_pos.y]]));
             }
         }
 
@@ -111,7 +109,7 @@ impl SimPlot {
             )
             .anchor(Align2::LEFT_TOP);
 
-            text.draw(plot_ui);
+            plot_ui.text(text);
         }
 
         for func in self.plot_objects.get_plot_items() {

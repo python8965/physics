@@ -1,4 +1,4 @@
-use crate::app::graphics::define::{BoxedPlotDraw, PlotColor, PlotTextSize};
+use crate::app::graphics::define::{PlotItem, PlotColor, PlotTextSize};
 
 use crate::app::simulations::classic_simulation::object::state::CSObjectState;
 
@@ -62,10 +62,10 @@ impl CSimObject {
         sim_state: &SimulationState,
         index: usize,
         stamps: &mut Vec<CSObjectStamp>,
-    ) -> Vec<BoxedPlotDraw> {
+    ) -> Vec<PlotItem> {
         puffin::profile_function!();
 
-        let mut items: Vec<BoxedPlotDraw> = vec![];
+        let mut items: Vec<PlotItem> = vec![];
         let settings = sim_state.settings.specific.as_c_sim_settings().unwrap();
         let filter = &settings.plot_filter;
         let current_state = self.current_state();
@@ -116,14 +116,14 @@ impl CSimObject {
                             .radius(2.0)
                             .color(PlotColor::Stamp.get_color());
 
-                    items.push(Box::new(text));
-                    items.push(Box::new(point));
+                    items.push(text.into());
+                    items.push(point.into());
                 }
             }
         }
 
         if filter.text {
-            items.push(Box::new(get_self_state_text(&current_state)));
+            items.push(get_self_state_text(&current_state).into());
         }
 
         if filter.sigma_force {
@@ -140,8 +140,8 @@ impl CSimObject {
                 data,
             );
 
-            items.push(Box::new(arrows));
-            items.push(Box::new(text));
+            items.push(arrows.into());
+            items.push(text.into());
         }
 
         if filter.velocity {
@@ -159,8 +159,8 @@ impl CSimObject {
                 data,
             );
 
-            items.push(Box::new(arrows));
-            items.push(Box::new(text));
+            items.push(arrows.into());
+            items.push(text.into());
         }
 
         if filter.acceleration {
@@ -183,8 +183,8 @@ impl CSimObject {
                     data,
                 );
 
-                items.push(Box::new(arrows));
-                items.push(Box::new(text));
+                items.push(arrows.into());
+                items.push(text.into());
             }
         }
 
@@ -223,7 +223,7 @@ impl CSimObject {
                 .name("trace line")
             };
 
-            items.push(Box::new(line));
+            items.push(line.into());
         }
 
         items

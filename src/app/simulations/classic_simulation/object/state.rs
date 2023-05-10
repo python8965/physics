@@ -1,10 +1,27 @@
-use crate::app::simulations::classic_simulation::object::shape::{ContactInfo, ObjectShape};
+
+use egui::plot::{Arrows};
+use crate::app::simulations::classic_simulation::object::shape::{ObjectShape};
 
 use crate::app::NVec2;
-use nalgebra::vector;
+use nalgebra::{vector};
+use crate::app::graphics::define::{ PlotItem};
+use crate::app::simulations::classic_simulation::event::CollisionEvent;
+
+trait ListAdd<Rhs = Self> {
+    type Output;
+    fn add(self, rhs: Rhs) -> Self::Output;
+}
+
+impl ListAdd for [f64; 2]{
+    type Output = [f64; 2];
+
+    fn add(self, rhs: [f64; 2]) -> Self {
+        [self[0] + rhs[0], self[1] + rhs[1]]
+    }
+}
 
 pub trait Collision {
-    fn contact(&self, ops: &CSObjectState) -> Option<ContactInfo>;
+    fn contact(&self, ops: &CSObjectState) -> Option<CollisionEvent>;
 }
 
 #[repr(usize)]
@@ -25,15 +42,15 @@ pub struct CSObjectState {
 }
 
 impl Collision for CSObjectState {
-    fn contact(&self, ops: &CSObjectState) -> Option<ContactInfo> {
-        match (self.shape, ops.shape) {
+    fn contact(&self, ops: &CSObjectState) -> Option<CollisionEvent> {
+        let mut shape = None;
+        let info = match (self.shape, ops.shape) {
             (ObjectShape::Circle(circle), ObjectShape::Circle(circle2)) => {
                 let dist = (self.position - ops.position).magnitude();
                 let penetration = circle.radius + circle2.radius - dist;
 
                 if penetration > 0.0 {
                     let delta_pos = self.position - ops.position;
-
                     let contact_normal = if delta_pos.norm() == 0.0 {
                         vector![0.0, 0.0]
                     } else {
@@ -49,20 +66,45 @@ impl Collision for CSObjectState {
                     let scale2 = contact_normal.yx().dot(&ops.momentum())
                         / contact_normal.yx().dot(&contact_normal);
 
-                    dbg!(scale1, scale2);
-
                     let obj1_scale = scale2;
                     let obj2_scale = scale1;
 
                     let obj1_velocity = contact_normal * obj1_scale / self.mass;
-                    let obj2_velocity = -contact_normal * obj2_scale / ops.mass;
+                    let obj2_velocity = contact_normal * -obj2_scale / ops.mass;
 
-                    dbg!(contact_normal, obj1_velocity, obj2_velocity);
+                    let _raw_contact_point = contact_point.data.0[0];
 
-                    Some(ContactInfo {
+                    let raw_self_position = self.position.data.0[0];
+                    let raw_ops_position = ops.position.data.0[0];
+
+                    shape = Some(Box::new(move ||{
+                        vec![
+                            PlotItem::Arrows(Arrows::new(vec![raw_self_position], vec![
+                                raw_ops_position
+                            ]).name("contact_normal")),
+                            PlotItem::Arrows(Arrows::new(vec![
+                                raw_self_position
+
+                            ], vec![
+
+                                raw_self_position.add(obj1_velocity.data.0[0]),
+                            ]).name("obj1_velocity")),
+                            PlotItem::Arrows(Arrows::new(vec![
+                                raw_ops_position
+
+                            ], vec![
+                                raw_ops_position.add(obj2_velocity.data.0[0]),
+                            ]).name("obj2_velocity")),
+                        ]
+                    }));
+
+                    Some(CollisionEvent {
                         contact_point,
                         contact_normal,
                         penetration,
+
+                        obj1_state: self.clone(),
+                        obj2_state: ops.clone(),
 
                         obj1_velocity,
                         obj2_velocity
@@ -72,7 +114,9 @@ impl Collision for CSObjectState {
                 }
             }
             _ => None,
-        }
+        };
+
+        info
     }
 }
 

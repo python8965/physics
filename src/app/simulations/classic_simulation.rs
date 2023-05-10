@@ -1,15 +1,16 @@
 pub mod object;
 pub mod sim_state;
 pub mod template;
+pub mod event;
 
-use std::sync::{Arc, Mutex};
+
 use crate::app::NVec2;
 
 use egui::plot::PlotPoint;
 use egui::{Response, Ui};
 use nalgebra::{vector, SMatrix};
-use once_cell::sync::Lazy;
-use tracing::info;
+
+
 
 use crate::app::graphics::plot::{InputMessage, PlotData};
 use crate::app::manager::SIMULATION_TICK;
@@ -20,8 +21,8 @@ use self::object::builder::CSimObjectBuilder;
 use self::object::state::{CSObjectState, ForceIndex};
 use crate::app::simulations::classic_simulation::object::state::Collision;
 pub use object::CSimObject;
-use crate::app::graphics::define::BoxedPlotDraw;
-use crate::app::manager::debug::DebugShapeStorage;
+
+use crate::app::simulations::classic_simulation::event::{CollisionEvent, SimulationEvent, SimulationEvents};
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
 pub const ZERO_FORCE: SMatrix<f64, 2, 1> = vector![0.0, 0.0];
@@ -50,11 +51,13 @@ pub trait Simulation: Send + Sync {
         state: &mut SimulationState,
     );
 
-    fn step(&mut self, state: &mut SimulationState, debug_store: &mut DebugShapeStorage);
+    fn step(&mut self, state: &mut SimulationState);
 
     fn at_time_step(&mut self, step: usize);
 
     fn get_children(&self) -> &Vec<CSimObject>;
+
+    fn get_events(&self, idx: usize) -> &SimulationEvents;
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -75,10 +78,13 @@ const OPERATION_ITER: [Operation; 5] = [
     Operation::EditObject,
 ];
 
+
 #[derive()]
 pub struct ClassicSimulation {
     pub objects: Vec<CSimObject>,
     pub global_acc_list: Vec<NVec2>,
+    pub events: Vec<SimulationEvents>,
+
     pub operation: Operation,
 }
 
@@ -87,6 +93,7 @@ impl From<Vec<CSimObject>> for ClassicSimulation {
         ClassicSimulation {
             objects: object,
             global_acc_list: vec![GRAVITY],
+            events: vec![SimulationEvents::default()],
             operation: Operation::default(),
         }
     }
@@ -217,7 +224,10 @@ impl Simulation for ClassicSimulation {
         }
     }
 
-    fn step(&mut self, state: &mut SimulationState, debug_store: &mut DebugShapeStorage) {
+
+
+    fn step(&mut self, state: &mut SimulationState) {
+        self.update();
         puffin::profile_scope!("ClassicSimulation::step");
 
         //TODO: 이거 더 좋은 방법 없나?
@@ -240,7 +250,9 @@ impl Simulation for ClassicSimulation {
             let Some((obj, rest)) = end.split_first_mut() else {panic!("Cannot Reach")};
 
             for obj2 in rest {
-                collision(obj, obj2);
+                Self::collision(obj, obj2).map(|x|{
+                    self.events[state.current_step].add_event(x);
+                });
             }
         }
 
@@ -250,11 +262,11 @@ impl Simulation for ClassicSimulation {
                 attached_fn(obj.current_state_mut());
             }
 
-            physics(obj, &self.global_acc_list);
+            Self::physics(obj, &self.global_acc_list);
             obj.save_state();
         }
 
-        debug_store.update();
+
     }
 
     fn at_time_step(&mut self, step: usize) {
@@ -266,53 +278,72 @@ impl Simulation for ClassicSimulation {
     fn get_children(&self) -> &Vec<CSimObject> {
         &self.objects
     }
-}
 
-fn collision(obj: &mut CSimObject, obj2: &mut CSimObject) {
-    let obj_state = obj.current_state_mut();
-    let obj2_state = obj2.current_state_mut();
-
-    if let Some(contact) = obj_state.contact(obj2_state) {
-        obj_state.velocity += contact.obj1_velocity;
-        obj2_state.velocity += contact.obj2_velocity;
-        // obj_state.position += contact.penetration * contact.contact_normal;
-        // obj2_state.position += contact.penetration * -contact.contact_normal;
+    fn get_events(&self, idx: usize) -> &SimulationEvents {
+        &self.events[idx]
     }
 }
 
-//
-fn physics(obj: &mut CSimObject, global_acc_list: &[NVec2]) {
-    // Physics
-    let global_acc: NVec2 = global_acc_list.iter().sum();
-    let state = obj.current_state_mut();
-    let dt = SIMULATION_TICK;
 
-    // ΣF
-    // ΣF = ma
-    // a = ΣF / m
-    // Δv = a * Δt
-    // Δp = ΣF * Δt
-    // Δs = v * Δt
+impl ClassicSimulation{
+    fn update(&mut self) {
+        self.events.push(SimulationEvents::default());
+    }
 
-    {
-        let current_acc = state.acceleration();
+    fn collision(obj: &mut CSimObject, obj2: &mut CSimObject) -> Option<CollisionEvent> {
+        let obj_state = obj.current_state_mut();
+        let obj2_state = obj2.current_state_mut();
 
-        let sum_acc = current_acc + global_acc; // Σa
-                                                // let Δa = current_acc - last_state.acceleration();
+        if let Some(contact) = obj_state.contact(obj2_state) {
+            obj_state.velocity += contact.obj1_velocity;
+            obj2_state.velocity += contact.obj2_velocity;
+            // obj_state.position += contact.penetration * contact.contact_normal;
+            // obj2_state.position += contact.penetration * -contact.contact_normal;
 
-        let delta_v = sum_acc * dt; // 등가속도 운동에서의 보정.
-                                    // let Δv_error = (Δa * dt) / 2.0;
-                                    // let Δv = Δv + Δv_error;
+            Some(contact)
+        }else {
+            None
+        }
+    }
 
-        let v = state.velocity;
+    fn physics(obj: &mut CSimObject, global_acc_list: &Vec<NVec2>) {
+        // Physics
+        let global_acc: NVec2 = global_acc_list.iter().sum();
+        let state = obj.current_state_mut();
+        let dt = SIMULATION_TICK;
 
-        let delta_pos = v * dt;
-        let dpos_error = (delta_v * dt) / 2.0; // 등가속도 운동에서의 보정.
-        let delta_pos = delta_pos + dpos_error;
+        // ΣF
+        // ΣF = ma
+        // a = ΣF / m
+        // Δv = a * Δt
+        // Δp = ΣF * Δt
         // Δs = v * Δt
 
-        state.last_velocity = state.velocity;
-        state.velocity += delta_v;
-        state.position += delta_pos
+        {
+            let current_acc = state.acceleration();
+
+            let sum_acc = current_acc + global_acc; // Σa
+            // let Δa = current_acc - last_state.acceleration();
+
+            let delta_v = sum_acc * dt; // 등가속도 운동에서의 보정.
+            // let Δv_error = (Δa * dt) / 2.0;
+            // let Δv = Δv + Δv_error;
+
+            let v = state.velocity;
+
+            let delta_pos = v * dt;
+            let dpos_error = (delta_v * dt) / 2.0; // 등가속도 운동에서의 보정.
+            let delta_pos = delta_pos + dpos_error;
+            // Δs = v * Δt
+
+            state.last_velocity = state.velocity;
+            state.velocity += delta_v;
+            state.position += delta_pos
+        }
     }
+
 }
+
+
+
+//

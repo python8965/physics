@@ -1,4 +1,6 @@
+use egui::plot::PlotPoints;
 use egui::util::History;
+use crate::app::NVec2;
 
 pub struct FrameHistory {
     frame_times: History<f32>,
@@ -32,3 +34,4 @@ impl FrameHistory {
         1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
     }
 }
+

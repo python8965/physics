@@ -3,7 +3,7 @@ use egui::{ScrollArea, Slider, Widget};
 use nalgebra::Vector2;
 
 use crate::app::audio::player::MusicPlayer;
-use crate::app::graphics::image::ImageManager;
+
 use crate::app::graphics::plot::InputMessage;
 use crate::app::manager::SimulationManager;
 use crate::app::simulations::classic_simulation::template::get_sim_list;
@@ -345,7 +345,7 @@ impl eframe::App for State {
 
             egui::warn_if_debug_build(ui);
 
-            if let (Some(simulation), simulation_plot, state, debug_store) =
+            if let (Some(simulation), simulation_plot, state) =
                 self.simulation_manager.get_simulation()
             {
                 let legend = Legend::default();
@@ -371,7 +371,7 @@ impl eframe::App for State {
 
                 let response = plot.show(ui, |plot_ui| {
                     state.update_simulation_state(plot_ui);
-                    simulation_plot.draw(simulation, plot_ui, state, debug_store);
+                    simulation_plot.draw(simulation, plot_ui, state);
 
                     InputMessage {
                         clicked: plot_ui.plot_clicked(),

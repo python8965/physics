@@ -1,4 +1,4 @@
-pub mod debug;
+
 
 use crate::app::graphics::plot::SimPlot;
 
@@ -7,7 +7,6 @@ use crate::app::simulations::classic_simulation::{ClassicSimulation, Simulation}
 use egui::Ui;
 use getset::Getters;
 use instant::Instant;
-use crate::app::manager::debug::DebugShapeStorage;
 
 use crate::app::simulations::classic_simulation::template::init::SimulationInit;
 use crate::app::simulations::classic_simulation::template::{CSPreset, CSTemplate};
@@ -24,8 +23,6 @@ pub struct SimulationManager {
     #[getset(get = "pub")]
     sim_state: SimulationState,
     simulation_plot: SimPlot,
-
-    debug_store: debug::DebugShapeStorage,
     is_paused: bool,
     last_time_stamp: Instant,
     is_sim_initializing: bool,
@@ -38,7 +35,6 @@ impl Default for SimulationManager {
             simulation: None,
             sim_state: SimulationState::default(),
             simulation_plot: SimPlot::default(),
-            debug_store: Default::default(),
             is_paused: true,
             last_time_stamp: Instant::now(),
             is_sim_initializing: false,
@@ -103,13 +99,11 @@ impl SimulationManager {
         &mut Option<Box<dyn Simulation>>,
         &mut SimPlot,
         &mut SimulationState,
-        &mut DebugShapeStorage
     ) {
         (
             &mut self.simulation,
             &mut self.simulation_plot,
             &mut self.sim_state,
-            &mut self.debug_store,
         )
     }
 
@@ -181,7 +175,7 @@ impl SimulationManager {
             self.sim_state.max_step += 1;
             self.sim_state.current_step = self.sim_state.max_step;
 
-            simulation.step(&mut self.sim_state,&mut self.debug_store);
+            simulation.step(&mut self.sim_state);
         }
 
         self.sim_state.time += SIMULATION_TICK;
