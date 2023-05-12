@@ -147,18 +147,18 @@ impl eframe::App for State {
                     self.simulation_manager.timestep_changed();
                 }
 
-                if ui.add_enabled(
-                    self.simulation_manager.timestep() != 0,
-                    egui::Button::new("Prev")
-                ).clicked() {
+                if ui
+                    .add_enabled(
+                        self.simulation_manager.timestep() != 0,
+                        egui::Button::new("Prev"),
+                    )
+                    .clicked()
+                {
                     *self.simulation_manager.current_timestep_mut() -= 1;
                     self.simulation_manager.timestep_changed();
                 }
 
-                if ui.add_enabled(
-                    true,
-                    egui::Button::new("Next")
-                ).clicked() {
+                if ui.add_enabled(true, egui::Button::new("Next")).clicked() {
                     *self.simulation_manager.current_timestep_mut() += 1;
                     self.simulation_manager.timestep_changed();
                 }
@@ -371,7 +371,7 @@ impl eframe::App for State {
 
                 let response = plot.show(ui, |plot_ui| {
                     state.update_simulation_state(plot_ui);
-                    simulation_plot.draw(simulation, plot_ui, state);
+                    simulation_plot.draw(simulation.as_mut(), plot_ui, state);
 
                     InputMessage {
                         clicked: plot_ui.plot_clicked(),

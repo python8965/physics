@@ -44,7 +44,7 @@ impl SimPlot {
     // 그래프를 그린다.
     pub fn draw(
         &mut self,
-        simulation: &Box<dyn Simulation>,
+        simulation: &dyn Simulation,
         plot_ui: &mut PlotUi,
         state: &mut SimulationState,
     ) {

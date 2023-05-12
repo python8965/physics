@@ -33,7 +33,7 @@ pub enum GlobalForceSlot {
 }
 
 pub trait Simulation: Send + Sync {
-    fn inspection_ui(&mut self, ui: &mut Ui) {
+    fn inspection_ui(&mut self, ui: &mut Ui, timestep: usize) {
         ui.label("No inspection UI");
     }
 
@@ -98,12 +98,18 @@ impl From<Vec<CSimObject>> for ClassicSimulation {
 }
 
 impl Simulation for ClassicSimulation {
-    fn inspection_ui(&mut self, ui: &mut Ui) {
+    fn inspection_ui(&mut self, ui: &mut Ui, timestep: usize) {
         for (i, child) in self.objects.iter_mut().enumerate() {
             ui.push_id(i, |ui| {
                 ui.collapsing(format!("Object {}", i), |ui| {
                     child.inspection_ui(ui);
                 });
+            });
+        }
+
+        if let Some(x) = timestep.checked_sub(1) {
+            ui.collapsing(format!("Events {:?}", x), |ui| {
+                self.events[x].inspection_ui(ui);
             });
         }
     }
@@ -223,7 +229,7 @@ impl Simulation for ClassicSimulation {
     }
 
     fn step(&mut self, state: &mut SimulationState) {
-        self.update();
+        let mut event = SimulationEvents::default();
         puffin::profile_scope!("ClassicSimulation::step");
 
         //TODO: 이거 더 좋은 방법 없나?
@@ -239,19 +245,6 @@ impl Simulation for ClassicSimulation {
 
         let length = self.objects.len();
 
-        //충돌 처리 부분
-        for i in 1..length + 1 {
-            let (_front, end) = self.objects.split_at_mut(i - 1);
-
-            let Some((obj, rest)) = end.split_first_mut() else {panic!("Cannot Reach")};
-
-            for obj2 in rest {
-                if let Some(x) = Self::collision(obj, obj2) {
-                    self.events[state.current_step.saturating_sub(1)].add_event(x);
-                }
-            }
-        }
-
         //물리 처리 부분
         for obj in self.objects.iter_mut() {
             if let Some(attached_fn) = &obj.attached() {
@@ -261,6 +254,21 @@ impl Simulation for ClassicSimulation {
             Self::physics(obj, &self.global_acc_list);
             obj.save_state();
         }
+
+        //충돌 처리 부분
+        for i in 1..length + 1 {
+            let (_front, end) = self.objects.split_at_mut(i - 1);
+
+            let Some((obj, rest)) = end.split_first_mut() else {panic!("Cannot Reach")};
+
+            for obj2 in rest {
+                if let Some(x) = Self::collision(obj, obj2) {
+                    event.add_event(x);
+                }
+            }
+        }
+
+        self.events.push(event);
     }
 
     fn at_time_step(&mut self, step: usize) {
@@ -283,10 +291,6 @@ impl Simulation for ClassicSimulation {
 }
 
 impl ClassicSimulation {
-    fn update(&mut self) {
-        self.events.push(SimulationEvents::default());
-    }
-
     fn collision(obj: &mut CSimObject, obj2: &mut CSimObject) -> Option<CollisionEvent> {
         let obj_state = obj.current_state_mut();
         let obj2_state = obj2.current_state_mut();

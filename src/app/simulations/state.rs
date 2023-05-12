@@ -150,4 +150,11 @@ impl SimulationState {
         self.current_step = 0;
         self.max_step = 0;
     }
+
+    pub fn inspection_ui(&mut self, ui: &mut egui::Ui) {
+        ui.label(format!("Time: {:.2}", self.time));
+        ui.label(format!("Step: {}", self.current_step));
+        ui.label(format!("Max Step: {}", self.max_step));
+        ui.label(format!("Time Multiplier: {}", self.time_mul));
+    }
 }

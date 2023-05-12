@@ -1,5 +1,3 @@
-
-
 use crate::app::graphics::plot::SimPlot;
 
 use crate::app::simulations::classic_simulation::sim_state::CSimSettings;
@@ -161,7 +159,12 @@ impl SimulationManager {
     pub fn inspection_ui(&mut self, ui: &mut Ui) {
         if let Some(simulation) = self.simulation.as_mut() {
             ui.collapsing("Simulation Inspect", |ui| {
-                simulation.inspection_ui(ui);
+                simulation.inspection_ui(ui, self.sim_state.current_step);
+                ui.separator();
+            });
+
+            ui.collapsing("Simulation Settings", |ui| {
+                self.sim_state.inspection_ui(ui);
                 ui.separator();
             });
         }

@@ -26,6 +26,14 @@ impl SimulationEvents {
             acc
         })
     }
+
+    pub fn inspection_ui(&self, ui: &mut egui::Ui) {
+        self.0.iter().enumerate().for_each(|(i, x)| {
+            ui.collapsing(format!("CollisionEvent, {:?}", i), |ui| {
+                ui.push_id(i, |ui| x.inspection_ui(ui));
+            });
+        });
+    }
 }
 
 impl Into<SimulationEvent> for CollisionEvent {
@@ -42,6 +50,20 @@ impl SimulationEvent {
     pub fn get_shapes(&self) -> Vec<PlotItem> {
         match self {
             Self::Collision(event) => event.get_shapes().into_iter().map(|x| x.into()).collect(),
+        }
+    }
+
+    pub fn inspection_ui(&self, ui: &mut egui::Ui) {
+        match self {
+            Self::Collision(event) => {
+                ui.label(format!("penetration: {:?}", event.penetration));
+                ui.label(format!("contact_point: {:?}", event.contact_point));
+                ui.label(format!("contact_normal: {:?}", event.contact_normal));
+                ui.label(format!("obj1_velocity: {:?}", event.obj1_velocity));
+                ui.label(format!("obj2_velocity: {:?}", event.obj2_velocity));
+                ui.label(format!("obj1_state: {:?}", event.obj1_state));
+                ui.label(format!("obj2_state: {:?}", event.obj2_state));
+            }
         }
     }
 }
