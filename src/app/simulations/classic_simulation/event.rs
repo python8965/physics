@@ -1,5 +1,5 @@
 use crate::app::graphics::define::PlotItem;
-use crate::app::simulations::classic_simulation::object::state::{CSObjectState, ListAdd};
+use crate::app::simulations::classic_simulation::object::state::{CSObjectState};
 use crate::app::NVec2;
 use egui::plot::Arrows;
 use egui::CollapsingHeader;

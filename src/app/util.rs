@@ -1,6 +1,6 @@
-use egui::plot::PlotPoints;
+
 use egui::util::History;
-use crate::app::NVec2;
+
 
 pub struct FrameHistory {
     frame_times: History<f32>,

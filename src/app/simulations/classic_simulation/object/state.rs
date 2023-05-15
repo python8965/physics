@@ -2,7 +2,7 @@ use crate::app::simulations::classic_simulation::event::CollisionEvent;
 use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
 use crate::app::NVec2;
 use nalgebra::vector;
-use std::ops::Neg;
+
 
 pub trait ListAdd<Rhs = Self> {
     type Output;

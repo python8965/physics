@@ -20,7 +20,7 @@ use crate::app::simulations::classic_simulation::object::state::Collision;
 pub use object::CSimObject;
 
 use crate::app::simulations::classic_simulation::event::{
-    CollisionEvent, SimulationEvent, SimulationEvents,
+    CollisionEvent, SimulationEvents,
 };
 
 pub const GRAVITY: SMatrix<f64, 2, 1> = vector![0.0, -9.8];
@@ -33,7 +33,7 @@ pub enum GlobalForceSlot {
 }
 
 pub trait Simulation: Send + Sync {
-    fn inspection_ui(&mut self, ui: &mut Ui, timestep: usize) {
+    fn inspection_ui(&mut self, ui: &mut Ui, _timestep: usize) {
         ui.label("No inspection UI");
     }
 
