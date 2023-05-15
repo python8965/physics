@@ -6,7 +6,7 @@ pub mod template;
 use crate::app::NVec2;
 
 use egui::plot::PlotPoint;
-use egui::{Response, Ui};
+use egui::{CollapsingHeader, Response, Ui};
 use nalgebra::{vector, SMatrix};
 
 use crate::app::graphics::plot::{InputMessage, PlotData};
@@ -108,9 +108,11 @@ impl Simulation for ClassicSimulation {
         }
 
         if let Some(x) = timestep.checked_sub(1) {
-            ui.collapsing(format!("Events {:?}", x), |ui| {
-                self.events[x].inspection_ui(ui);
-            });
+            CollapsingHeader::new(format!("Event {:?}", x))
+                .default_open(true)
+                .show(ui, |ui| {
+                    self.events[x].inspection_ui(ui);
+                });
         }
     }
 
@@ -310,7 +312,9 @@ impl ClassicSimulation {
     fn physics(obj: &mut CSimObject, global_acc_list: &[NVec2]) {
         // Physics
         let global_acc: NVec2 = global_acc_list.iter().sum();
+        let previous_state = obj.previous_state().unwrap_or(obj.current_state());
         let state = obj.current_state_mut();
+
         let dt = SIMULATION_TICK;
 
         // ΣF
@@ -324,11 +328,12 @@ impl ClassicSimulation {
             let current_acc = state.acceleration();
 
             let sum_acc = current_acc + global_acc; // Σa
-                                                    // let Δa = current_acc - last_state.acceleration();
+
+            let delta_a = current_acc - previous_state.acceleration();
 
             let delta_v = sum_acc * dt; // 등가속도 운동에서의 보정.
-                                        // let Δv_error = (Δa * dt) / 2.0;
-                                        // let Δv = Δv + Δv_error;
+            let dv_error = (delta_a * dt) / 2.0;
+            let delta_v = delta_v + dv_error;
 
             let v = state.velocity;
 

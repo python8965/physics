@@ -2,6 +2,7 @@ use crate::app::simulations::classic_simulation::event::CollisionEvent;
 use crate::app::simulations::classic_simulation::object::shape::ObjectShape;
 use crate::app::NVec2;
 use nalgebra::vector;
+use std::ops::Neg;
 
 pub trait ListAdd<Rhs = Self> {
     type Output;
@@ -61,11 +62,13 @@ impl Collision for CSObjectState {
                     let scale2 = contact_normal.yx().dot(&ops.momentum())
                         / contact_normal.yx().dot(&contact_normal);
 
-                    let obj1_scale = scale2;
-                    let obj2_scale = scale1;
+                    dbg!(scale1, scale2);
 
-                    let obj1_velocity = contact_normal * obj1_scale / self.mass;
-                    let obj2_velocity = contact_normal * -obj2_scale / ops.mass;
+                    let obj1_scale = scale2.abs();
+                    let obj2_scale = scale1.abs();
+
+                    let obj1_velocity = contact_normal * (obj1_scale / self.mass);
+                    let obj2_velocity = (-contact_normal) * (obj2_scale / ops.mass);
 
                     Some(CollisionEvent {
                         contact_point,

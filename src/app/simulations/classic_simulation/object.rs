@@ -7,8 +7,6 @@ use getset::Getters;
 
 use state::CSObjectState;
 
-
-
 pub type AttachedFn = fn(&mut CSObjectState);
 
 #[derive(Default, Clone, Getters)]
@@ -46,6 +44,13 @@ impl CSimObject {
         self.local_timestep(self.timestep)
             .and_then(|timestep| self.state_timeline.get(timestep).cloned())
             .unwrap()
+    }
+
+    pub fn previous_state(&self) -> Option<CSObjectState> {
+        self.timestep
+            .checked_sub(1)
+            .and_then(|timestep| self.local_timestep(timestep))
+            .and_then(|timestep| self.state_timeline.get(timestep).cloned())
     }
 
     pub fn current_state_mut(&mut self) -> &mut CSObjectState {
