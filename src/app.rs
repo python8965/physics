@@ -374,6 +374,7 @@ impl eframe::App for State {
                     simulation_plot.draw(simulation.as_mut(), plot_ui, state);
 
                     InputMessage {
+
                         clicked: plot_ui.plot_clicked(),
                         hovered: plot_ui.plot_hovered(),
                         pointer_pos: plot_ui.pointer_coordinate(),

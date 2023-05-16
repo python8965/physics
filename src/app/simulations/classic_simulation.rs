@@ -213,7 +213,8 @@ impl Simulation for ClassicSimulation {
             }
             Operation::AddObject => {
                 if let Some(pointer_pos) = msg.pointer_pos {
-                    if msg.clicked {
+
+                    if response.drag_released() {
                         simulation_objects.push(
                             CSimObjectBuilder::new(CSObjectState {
                                 position: vector![pointer_pos.x, pointer_pos.y],
